@@ -1,0 +1,32 @@
+{
+ "scenario": "06-milvus-memory",
+ "title": "Milvus querynode belleği yükseliyor (loadtest)",
+ "inject_ok": true,
+ "started_at": "2026-10-09T00:32:49.046312+00:00",
+ "alerts_fired_min": {
+  "MilvusQueryNodeMemoryHigh": 7.5
+ },
+ "report_id": "a43da50a4f92",
+ "report_min": 7.8,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   loadtest temel hâlde: deney yok, trafik kapalı, veri bellekte değil, Milvus pod'ları hazır",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "milvus_querynode_memory_quota"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "golden_signals_baseline",
+   "memory_near_limit",
+   "pod_restarts"
+  ]
+ }
+}

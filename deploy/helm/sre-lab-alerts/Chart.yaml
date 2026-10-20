@@ -1,0 +1,5 @@
+apiVersion: v2
+name: sre-lab-alerts
+description: sre-lab deney uygulamasının kısa süreli alarm kuralları (chaos senaryoları, T1.8)
+type: application
+version: 0.1.0

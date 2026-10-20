@@ -1,0 +1,15 @@
+{
+ "scenario": "10-object-storage",
+ "title": "Object storage (GCS) erişilemiyor (loadtest)",
+ "outcome": {
+  "verdict": "atlandı",
+  "reasons": [
+   "gerekli: load (--with-load ile koşulur)"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [],
+  "evidence_missing": [],
+  "category_found": false,
+  "noise": []
+ }
+}

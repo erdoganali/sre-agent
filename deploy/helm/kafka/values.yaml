@@ -1,0 +1,60 @@
+# Kafka CR adı; bootstrap adresi: <clusterName>-kafka-bootstrap.<namespace>:9092
+clusterName: telemetry
+
+# Boş bırakılırsa operatörün varsayılan Kafka sürümü kullanılır.
+kafkaVersion: ""
+
+nodePool:
+  name: combined
+  replicas: 1
+  storage:
+    size: 10Gi
+    class: ""
+    deleteClaim: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 2Gi
+    limits:
+      memory: 2Gi
+  jvmOptions:
+    -Xms: 1024m
+    -Xmx: 1024m
+
+# Tek broker: tüm replikasyon faktörleri 1.
+replicationFactor: 1
+
+# TLS + SASL PLAIN dinleyicisi (9095).
+# Kullanıcılar (JAAS) repoda değil, elle oluşturulan Secret'ta: scripts/kafka-sasl-secrets.sh
+saslPlain:
+  enabled: true
+  port: 9095
+  usersSecret: kafka-sasl-plain-users
+  usersSecretKey: jaas.conf
+
+# Consumer lag metrikleri (T0.6 alarmları için).
+kafkaExporter:
+  enabled: true
+  # Prometheus Operator PodMonitor'u (kube-prometheus-stack tüm namespace'leri okur).
+  podMonitor: true
+
+defaultTopicConfig:
+  retention.ms: "86400000"  # 24 saat
+  cleanup.policy: delete
+
+# VectorDB topic adları (values-prod.yaml). VectorDB gateway'i yazar,
+# telemetry-consumer okur. traces topic'i VectorDB'da şimdilik kapalı ama hazır.
+topics:
+  - name: vectordb_milvus_metrics
+    partitions: 3
+  - name: vectordb_milvus_accesslog
+    partitions: 3
+  - name: vectordb_auditlog
+    partitions: 3
+  - name: vectordb_tenant_health
+    partitions: 3
+  - name: vectordb_traces
+    partitions: 3
+  # Yalnızca make kafka-smoke için; telemetry-consumer okumaz.
+  - name: sre_agent_smoke
+    partitions: 1

@@ -1,0 +1,82 @@
+{{- $sel := dict "app.kubernetes.io/name" "sre-lab-app" "app.kubernetes.io/instance" .Release.Name -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-lab
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+data:
+  message: {{ .Values.message | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-lab
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- toYaml $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml $sel | nindent 8 }}
+        app.kubernetes.io/part-of: sre-lab
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command:
+            - python
+            - -c
+            - |
+              import http.server, os
+              if os.environ.get("STARTUP_ERROR"):
+                  raise RuntimeError(os.environ["STARTUP_ERROR"])
+              class H(http.server.BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      body = os.environ.get("MESSAGE", "").encode()
+                      self.send_response(200); self.end_headers(); self.wfile.write(body)
+              http.server.HTTPServer(("0.0.0.0", 8080), H).serve_forever()
+          env:
+            {{- with .Values.startupError }}
+            - {name: STARTUP_ERROR, value: {{ . | quote }}}
+            {{- end }}
+            - name: MESSAGE
+              valueFrom:
+                configMapKeyRef: {name: {{ .Release.Name }}, key: message}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-lab
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  selector:
+    {{- toYaml $sel | nindent 4 }}
+  ports:
+    - {name: http, port: 8080, targetPort: http}

@@ -1,0 +1,30 @@
+{
+ "scenario": "12-etcd-quorum-loss",
+ "title": "etcd çoğunluk kaybı — 3 üyeden 2'si ağdan kesildi",
+ "inject_ok": true,
+ "started_at": "2026-10-17T21:47:33.228397+00:00",
+ "alerts_fired_min": {},
+ "report_id": null,
+ "report_min": null,
+ "blind_spots": [],
+ "labeled": false,
+ "cleanup_ok": true,
+ "cleanup": "OK   pilot temel hâlde: deney yok, Milvus ve etcd hazır",
+ "outcome": {
+  "verdict": "kaldı",
+  "reasons": [
+   "alarm çalmadı: VectorDBPodRestarting",
+   "rapor yazılmadı"
+  ],
+  "alerts_missing": [
+   "VectorDBPodRestarting"
+  ],
+  "evidence_found": [],
+  "evidence_missing": [
+   "milvus_etcd",
+   "pod_restarts"
+  ],
+  "category_found": false,
+  "noise": []
+ }
+}

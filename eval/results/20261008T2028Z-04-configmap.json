@@ -1,0 +1,32 @@
+{
+ "scenario": "04-configmap",
+ "title": "Elle yanlış ConfigMap değişikliği — konteyner başlayamıyor",
+ "inject_ok": true,
+ "started_at": "2026-10-08T20:45:18.299375+00:00",
+ "alerts_fired_min": {
+  "LabContainerWaiting": 2.7
+ },
+ "report_id": "a863ed970f6a",
+ "report_min": 3.1,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   sre-lab temel hâlde: docker.io/library/python:3.14.7-slim, message=merhaba, 1/1 hazır, deney yok",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "manual_changes",
+   "recent_rollouts"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "helm_release_changes",
+   "node_events"
+  ]
+ }
+}

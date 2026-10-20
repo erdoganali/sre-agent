@@ -1,0 +1,44 @@
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: {{ .Values.clusterName }}
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  kafka:
+    {{- with .Values.kafkaVersion }}
+    version: {{ . | quote }}
+    {{- end }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      {{- with .Values.saslPlain }}
+      {{- if .enabled }}
+      - name: sasl
+        port: {{ .port }}
+        type: internal
+        tls: true
+        authentication:
+          type: custom
+          sasl: true
+          listenerConfig:
+            sasl.enabled.mechanisms: PLAIN
+            plain.sasl.jaas.config: "${strimzisecrets:{{ $.Release.Namespace }}/{{ .usersSecret }}:{{ .usersSecretKey }}}"
+      {{- end }}
+      {{- end }}
+    config:
+      offsets.topic.replication.factor: {{ .Values.replicationFactor }}
+      transaction.state.log.replication.factor: {{ .Values.replicationFactor }}
+      transaction.state.log.min.isr: 1
+      default.replication.factor: {{ .Values.replicationFactor }}
+      min.insync.replicas: 1
+      auto.create.topics.enable: false
+  entityOperator:
+    topicOperator: {}
+  {{- if .Values.kafkaExporter.enabled }}
+  kafkaExporter:
+    topicRegex: ".*"
+    groupRegex: ".*"
+  {{- end }}

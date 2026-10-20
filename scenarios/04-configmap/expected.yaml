@@ -1,0 +1,12 @@
+id: 04-configmap
+title: Elle yanlış ConfigMap değişikliği — konteyner başlayamıyor
+namespace: sre-lab
+tool: kubectl
+verify: lab
+expected:
+  alerts: [LabContainerWaiting]
+  alert_within_min: 4
+  category: human_error
+  root_cause: ConfigMap'ten `message` anahtarı kubectl edit ile silindi, ardından uygulama yeniden başlatıldı; yeni pod CreateContainerConfigError.
+  evidence: [manual_changes, recent_rollouts]
+notes: Değişiklik `kubectl edit` ve `kubectl rollout restart` ile yapılır; değişiklik kontrolleri yöneticiyi (manager) kubectl olarak görür.

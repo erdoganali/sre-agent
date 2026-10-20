@@ -1,0 +1,19 @@
+# k8s-ephemeral-storage-metrics 1.21.3 — GKE (ADR-016).
+# GKE/containerd'de cAdvisor pod başına ephemeral kullanım vermiyor; bu exporter kubelet
+# /stats/summary'yi okur. RBAC: nodes, nodes/proxy, nodes/stats, pods — yalnızca okuma.
+
+serviceMonitor:
+  enable: true
+
+prometheus:
+  enable: true
+  # Hazır kurallar kapalı; kurallar vectordb-alerts chart'ında.
+  rules:
+    enable: false
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

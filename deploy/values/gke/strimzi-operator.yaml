@@ -1,0 +1,6 @@
+# Strimzi operatörü (resmi chart) — GKE
+# İç registry kullanılacaksa defaultImageRegistry buradan değiştirilir.
+watchNamespaces: []
+watchAnyNamespace: false
+defaultImageRegistry: quay.io
+defaultImageRepository: strimzi

@@ -1,0 +1,4 @@
+# sre-agent-rbac chart'ına VectorDB paketinin ek okuma kuralı (make rbac-install -f ile eklenir).
+extraRules:
+  - apiGroups: [milvus.io]
+    resources: [milvuses]

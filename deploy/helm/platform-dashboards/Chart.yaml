@@ -1,0 +1,5 @@
+apiVersion: v2
+name: platform-dashboards
+description: GKE izleme ortamının dashboard'ları (Prometheus'a bağlı GCP adaptörü; ADR-023)
+type: application
+version: 0.1.0

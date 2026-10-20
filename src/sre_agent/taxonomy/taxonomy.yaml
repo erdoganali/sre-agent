@@ -1,0 +1,166 @@
+# Kök neden taksonomisi (plan: "Kategori taksonomisi ve statik kontroller").
+# Kategoriler "neden oldu?" sorusunun etiketleri; statik kontroller "ne görüyorum?" sorusunun cevapları.
+# Bu dosya karar modelinin etiket kümesidir: kategori kimliği değişirse sürümün ana numarası artar.
+
+version: 1.1.0
+
+groups:
+  - id: change
+    name: Değişiklik
+  - id: application
+    name: Uygulama
+  - id: infrastructure
+    name: Altyapı
+  - id: external
+    name: Dış
+  - id: security
+    name: Güvenlik
+
+categories:
+  # --- Değişiklik ---
+  - id: application_release
+    name: Application Release
+    group: change
+    definition: Dağıtım hattından (Helm, Argo CD, rollout) gelen yeni sürüm, image ya da chart değişikliğinin kendisi sorunu başlattı.
+    rules:
+      - when: Yeni sürüm sorunsuz ayağa kalktı ama kod çalışırken hata veriyor (exception, crash).
+        not_this_but: application_service_bug
+        why: Dağıtım başarılı; sorun dağıtılan kodda.
+      - when: Değişiklik dağıtım hattından değil, elle (kubectl edit/apply/patch) yapılmış.
+        not_this_but: human_error
+        why: Plansız, elle yapılan değişiklik.
+      - when: Değişen şey uygulama değil, onaylı bir pencerede yapılan altyapı (node pool, cluster sürümü, operator).
+        not_this_but: planned_infrastructure_change
+        why: Uygulama sürümü değil, planlı altyapı değişikliği.
+
+  - id: planned_infrastructure_change
+    name: Planned Infrastructure Change (CAB)
+    group: change
+    definition: Onaylı ve planlı bir altyapı değişikliği (CAB kaydı, bakım penceresi, cluster ya da node yükseltmesi) sırasında ya da hemen ardından başlayan sorun.
+    rules:
+      - when: Değişen şey uygulamanın image'ı ya da chart'ı.
+        not_this_but: application_release
+        why: Altyapı değil uygulama sürümü değişti.
+      - when: Node kaybı ya da arızası herhangi bir plan veya bakım penceresiyle ilişkili değil.
+        not_this_but: hardware_problem
+        why: Planlanmamış donanım olayı.
+
+  - id: human_error
+    name: Human Error
+    group: change
+    definition: Plansız ve elle yapılan hatalı değişiklik ya da komut (kubectl edit, yanlış ConfigMap değeri, yanlış silme).
+    rules:
+      - when: Hatalı değer dağıtım hattıyla (Helm/Argo CD) gelmiş.
+        not_this_but: application_release
+        why: Değişiklik elle değil, sürümle geldi.
+
+  # --- Uygulama ---
+  - id: application_service_bug
+    name: Application/Service Bug
+    group: application
+    definition: Uygulama kodundaki hata; baseline'da olmayan hata imzası, exception, hata span'ı; değişiklik ya da kaynak baskısı kök neden değil.
+    rules:
+      - when: Pod OOMKilled oluyor ya da CPU throttling ile yavaşlıyor.
+        not_this_but: capacity_performance
+        why: Kaynak sınırı aşılıyor; kod hatası değil.
+      - when: Yeni sürüm hiç ayağa kalkmadı (ImagePullBackOff, yanlış image tag, eksik dağıtım parçası).
+        not_this_but: application_release
+        why: Kod çalışmıyor değil, dağıtımın kendisi bozuk.
+      - when: Hatalar bağımlılığa (object storage, dış API) yapılan çağrılarda ve bağımlılık hata ya da gecikme dönüyor.
+        not_this_but: vendor_external
+        why: Kod doğru davranıyor; dış bağımlılık bozuk.
+
+  # --- Altyapı ---
+  - id: capacity_performance
+    name: Capacity/Performance
+    group: infrastructure
+    definition: Kaynak yetersizliği ya da doygunluk; CPU throttling, bellek baskısı, OOMKilled, PVC veya ephemeral doluluk, kaynak yüzünden Pending, yükle birlikte bozulan golden signals.
+    rules:
+      - when: Node NotReady ya da node düzeyinde disk/memory pressure var ve pod'lar yeniden planlanıyor.
+        not_this_but: hardware_problem
+        why: Pod'un kendi limiti değil, altındaki node bozuk.
+      - when: Sınır veritabanının kendi koruma mekanizması (bellek/disk kotası nedeniyle yazmayı reddetmesi).
+        not_this_but: database
+        why: Kaynak değil, veritabanının kota/koruma davranışı.
+      - when: Platform bileşeni (Kafka, operator, telemetri hattı) kaynak yetersizliği olmadan hata veriyor.
+        not_this_but: infrastructure_system
+        why: Doygunluk değil, bileşen arızası.
+
+  - id: hardware_problem
+    name: Hardware Problem
+    group: infrastructure
+    definition: Node ya da altındaki makinenin arızası veya kaybı; NotReady, node düzeyinde disk/memory pressure, host bakımı, preemption.
+    rules:
+      - when: Node sağlıklı; pod kendi bellek/CPU limitini aşıyor.
+        not_this_but: capacity_performance
+        why: Node değil, pod'un kaynak sınırı.
+      - when: Node kaybı onaylı bir bakım ya da yükseltmenin parçası.
+        not_this_but: planned_infrastructure_change
+        why: Planlı değişiklik.
+
+  - id: infrastructure_system
+    name: Infrastructure / System
+    group: infrastructure
+    definition: Platform ve sistem bileşenlerinin sorunu; Kafka (lag baseline'ın 2 katı), operator reconcile hataları, control plane, telemetri hattı.
+    rules:
+      - when: Bileşen sağlıklı ama yük altında kaynak yetmiyor.
+        not_this_but: capacity_performance
+        why: Arıza değil doygunluk.
+      - when: Sorunlu bileşen veritabanının kendisi (koordinatörü, sorgu düğümleri, meta veri deposu).
+        not_this_but: database
+        why: Veritabanı katmanı ayrı kategoride.
+
+  - id: network
+    name: Network
+    group: infrastructure
+    definition: Ağ katmanı sorunu; DNS hataları, connection refused/timeout oranı, NetworkPolicy değişiklikleri, ingress 5xx.
+    rules:
+      - when: Zaman aşımları yalnızca dış bağımlılığa (object storage, bulut API'si) ve bizim ağımız sağlıklı.
+        not_this_but: vendor_external
+        why: Karşı taraf yavaş ya da kapalı.
+      - when: Ingress 5xx'lerin kaynağı uygulamanın exception'ı.
+        not_this_but: application_service_bug
+        why: Ağ değil, uygulama hata dönüyor.
+
+  - id: database
+    name: Database
+    group: infrastructure
+    definition: Veritabanı ya da veri deposunun kendi sorunu; koruma sınırları (bellek/disk kotası), birikim (compaction, segment, silme kayıtları), meta veri deposu, koordinasyon, bağlantı limiti. Ürüne özel örnekler domain paketinin kategori notlarında.
+    rules:
+      - when: Veritabanı pod'ları node kaybıyla düştü.
+        not_this_but: hardware_problem
+        why: Veritabanı değil, altındaki node bozuk.
+      - when: Veritabanının hataları dış depolama (object storage, ör. GCS/Ceph) hatalarından kaynaklanıyor.
+        not_this_but: vendor_external
+        why: Kök neden dış depolama.
+
+  # --- Dış ---
+  - id: vendor_external
+    name: Vendor/External Problem
+    group: external
+    definition: Kontrolümüz dışındaki bağımlılığın sorunu; object storage (GCP'de GCS, hedef ortamda Ceph) gecikme ve hataları, bulut sağlayıcı durumu, dış API'ler.
+    rules:
+      - when: Bağımlılığa ulaşılamamasının nedeni bizim DNS'imiz ya da NetworkPolicy'miz.
+        not_this_but: network
+        why: Karşı taraf değil, bizim ağımız.
+
+  # --- Güvenlik ---
+  - id: security
+    name: Security
+    group: security
+    definition: Kimlik doğrulama ve yetkilendirme kaynaklı sorun; 401/403 artışı, süresi dolan sertifika, secret rotasyonu.
+    rules:
+      - when: İstemci hiç bağlanamıyor (connection refused/timeout); 401/403 yok.
+        not_this_but: network
+        why: Yetki değil, bağlantı sorunu.
+      - when: 401/403 artışı yeni bir sürümle birlikte gelen yanlış kimlik bilgisi referansından.
+        not_this_but: application_release
+        why: Güvenlik olayı değil, hatalı dağıtım.
+
+unknown:
+  id: unknown
+  definition: >-
+    Kontrollerin hiçbiri bir kategoriyi destekleyen anomali kanıtı göstermedi ya da eşit ağırlıkta çelişen
+    kanıtlar var. Raporun genel sonucudur; tek bir kontrolün "no_data" (veri yok) durumundan farklıdır:
+    no_data bir kontrolün sonucu, unknown kategorinin belirlenemediğidir. Etiketli veride unknown, "insan
+    incelemesi gerekti" anlamına gelir ve kapanan olayda gerçek kategoriyle değiştirilir.

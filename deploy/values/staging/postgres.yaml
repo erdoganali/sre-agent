@@ -1,0 +1,6 @@
+# postgres — GKE
+backup:
+  enabled: true
+  bucket: example-project-sre-agent-backups
+  provider: GCS
+  endpoint: https://storage.googleapis.com

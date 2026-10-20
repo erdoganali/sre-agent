@@ -1,0 +1,2 @@
+namespaces: [ornek-a, ornek-b]
+forbiddenNamespaces: [korunan]

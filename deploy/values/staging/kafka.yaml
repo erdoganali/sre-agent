@@ -1,0 +1,4 @@
+# Kafka cluster'ı — GKE
+nodePool:
+  storage:
+    class: standard-rwo

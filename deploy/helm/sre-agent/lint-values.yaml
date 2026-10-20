@@ -1,0 +1,3 @@
+# Yalnızca make template (helm lint/template) için.
+image: {tag: lint}
+config: "packs: []"

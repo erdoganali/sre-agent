@@ -1,0 +1,61 @@
+image:
+  repository: registry.example.com/sre-agent-apps/sre-agent
+  tag: ""  # make agent-install IMAGE_TAG ile verir
+  pullPolicy: IfNotPresent
+
+# sre-agent-rbac chart'ının read-only ServiceAccount'u (get/list/watch, secrets yok).
+serviceAccountName: sre-agent-readonly
+
+# Grafana anotasyonu için Editor rollü servis hesabı token'ı (make grafana-token; ADR-022).
+grafanaTokenSecret: sre-agent-grafana
+
+# DATABASE_URL (make db-secrets); uygulama veritabanını yalnızca bununla tanır.
+databaseSecret: postgres-auth
+
+# config/<ortam>.yaml içeriği (make agent-install --set-file ile verir).
+config: ""
+
+# Model kataloğu (config/models.yaml; make agent-install --set-file ile verir, ADR-027).
+# Pod içinde /etc/sre-agent/models.yaml. Boşsa model katmanı yok (Faz 1 raporu LLM'siz çalışır).
+models: ""
+# Katalogdaki ${...} değişkenleri: adres, model adı, rol → model (ör. QWEN3_6_35B_URL: gateway adresi)
+modelEnv: {}
+# Anahtar gibi gizli değerler (ör. QWEN3_6_35B_AUTH="Bearer ..."): bu Secret'ın anahtarları ortam
+# değişkeni olur. Yoksa atlanır (optional).
+modelSecret: sre-agent-models
+# Bilgi tabanı (RAG, ADR-034) kimliği: KNOWLEDGE_TOKEN anahtarı ("kullanıcı:parola"); ana pod ve
+# product MCP sunucusu okur. Yoksa atlanır (optional).
+knowledgeSecret: sre-agent-knowledge
+
+# Ajanın kendi trace'leri (OTel GenAI; T2.3): OTLP/HTTP uç noktası. Boşsa trace gönderilmez.
+otel:
+  endpoint: ""
+
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {memory: 512Mi}
+
+# Grafana dashboard'u (SRE Agent / Raporlar): rapor anotasyonlarını etiketle listeler.
+dashboard:
+  enabled: true
+
+# Rapor sayfaları için ingress (yalnız /reports). basicAuthSecret boşsa kimlik doğrulama yok.
+ingress:
+  enabled: false
+  className: nginx
+  host: ""
+  basicAuthSecret: sre-agent-basic-auth  # make agent-auth
+
+serviceMonitor:
+  enabled: true
+
+# MCP sunucuları (ADR-030): yetenek başına ayrı Deployment, Service ve ServiceAccount.
+# kubeAccess'teki sunucular sre-agent-rbac chart'ının okuma rolünü kendi ServiceAccount'larıyla
+# kullanır (sre-agent-mcp-<ad>); ötekilerin ServiceAccount'u bu chart'ta, rolsüz ve tokensız.
+mcp:
+  enabled: false
+  servers: [metrics, logs, traces, k8s, product]
+  kubeAccess: [k8s, product]
+  resources:
+    requests: {cpu: 20m, memory: 96Mi}
+    limits: {memory: 256Mi}

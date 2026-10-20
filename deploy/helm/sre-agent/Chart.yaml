@@ -1,0 +1,5 @@
+apiVersion: v2
+name: sre-agent
+description: SRE agent rapor servisi (Faz 1, LLM'siz kontrol raporu)
+type: application
+version: 0.1.0

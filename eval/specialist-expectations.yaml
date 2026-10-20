@@ -1,0 +1,21 @@
+# Specialist ölçümü (T3.4 kabulü): olayın etiketine göre "doğru kanıt" sayılan metin desenleri.
+# Bir specialist'in kanıt satırlarından (araç çağrısı + dönen veri) biri desene uyarsa o olayda
+# doğru kanıtı bulmuş sayılır. Desenler büyük/küçük harf duyarsız regex.
+hardware_problem:
+  - "NotReady|Shutdown|yeniden oluşturuldu|bugün yok|kaybedilen node"
+capacity_performance:
+  - "OOMKilled|throttl|limit|Evicted|MemoryPressure|DiskPressure"
+application_release:
+  - "helm|rollout|revision|sürüm|image"
+application_service_bug:
+  - "panic|exception|traceback|error|CrashLoopBackOff"
+human_error:
+  - "manual|elle|kubectl"
+network:
+  - "timeout|connection refused|DNS|NetworkPolicy|5[0-9][0-9]"
+database:
+  - "etcd|database|quota|deny|segment|compaction"
+vendor_external:
+  - "object storage|bucket|S3|GCS"
+infrastructure_system:
+  - "kafka|consumer|lag|operator"

@@ -1,0 +1,2 @@
+- Milvus pod'larında restart görülüyorsa `placement` ile olay anındaki node'lara bak: node NotReady olup kısa süre sonra yeniden oluşturulduysa (spot node kaybı) restartların başlatıcısı odur.
+- `events` yalnız son ~1 saati tutar; eski olaylarda `placement` ve `recent_changes` kullan.

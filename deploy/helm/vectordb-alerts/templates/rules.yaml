@@ -1,0 +1,315 @@
+{{- $t := .Values.thresholds -}}
+{{- $job := .Values.milvusJob -}}
+{{- $svPods := include "alerts.svPods" . -}}
+{{- $svNamespaces := include "alerts.svNamespaces" . -}}
+{{- $svPodsEph := include "alerts.svPodsEph" . -}}
+{{- $infraNs := include "alerts.infraNamespaces" . -}}
+{{- $svSel := include "alerts.svSel" . -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: vectordb-alerts
+  labels:
+    {{- include "alerts.labels" . | nindent 4 }}
+spec:
+  groups:
+    # ------------------------------------------------------------------
+    # Milvus (tenant) — telemetri hattından gelen metrikler
+    # ------------------------------------------------------------------
+    - name: vectordb.milvus
+      rules:
+        - alert: MilvusQueryNodeMemoryHigh
+          expr: |
+            max by (namespace, pod) (container_memory_working_set_bytes{container="querynode"})
+              / max by (namespace, pod) (kube_pod_container_resource_limits{container="querynode", resource="memory"})
+              > {{ $t.queryNodeMemoryWarning }}
+              and on (namespace, pod) {{ $svPods }}
+          for: {{ $t.queryNodeMemoryWarningFor }}
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "querynode belleği limitin %{{ mulf $t.queryNodeMemoryWarning 100 }}'ini aştı ({{ "{{ $labels.namespace }}/{{ $labels.pod }}" }})"
+            description: "Kullanım/limit = {{ "{{ $value | humanizePercentage }}" }}. Milvus %95'te yazmayı keser."
+
+        - alert: MilvusQueryNodeMemoryNearQuota
+          expr: |
+            max by (namespace, pod) (container_memory_working_set_bytes{container="querynode"})
+              / max by (namespace, pod) (kube_pod_container_resource_limits{container="querynode", resource="memory"})
+              > {{ $t.queryNodeMemoryCritical }}
+              and on (namespace, pod) {{ $svPods }}
+          for: {{ $t.queryNodeMemoryCriticalFor }}
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "querynode belleği yazma kesme eşiğine yakın ({{ "{{ $labels.namespace }}/{{ $labels.pod }}" }})"
+            description: "Kullanım/limit = {{ "{{ $value | humanizePercentage }}" }}; qn_mem_high_water_level 0.95."
+
+        - alert: MilvusWriteDenied
+          expr: |
+            # namespace etiketi: sre-agent kontrolleri alarmın namespace'ine bakar
+            label_replace(
+              sum by (k8s_namespace_name) (increase(milvus_rootcoord_force_deny_writing_counter_total{job="{{ $job }}"}[5m])),
+              "namespace", "$1", "k8s_namespace_name", "(.*)"
+            ) > 0
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "Milvus yazmaları reddediyor ({{ "{{ $labels.k8s_namespace_name }}" }})"
+            description: "Kota (bellek/disk) nedeniyle force-deny-writing tetiklendi."
+
+        - alert: MilvusSearchLatencyP99High
+          expr: |
+            label_replace(
+              histogram_quantile(0.99,
+                sum by (le, k8s_namespace_name, function_name) (
+                  rate(milvus_proxy_req_latency_bucket{job="{{ $job }}", function_name=~"Search|HybridSearch|Query"}[5m])
+                )
+              ),
+              "namespace", "$1", "k8s_namespace_name", "(.*)"
+            ) > {{ $t.searchLatencyP99Ms }}
+          for: 10m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "Milvus {{ "{{ $labels.function_name }}" }} p99 gecikmesi {{ $t.searchLatencyP99Ms }} ms'yi aştı ({{ "{{ $labels.k8s_namespace_name }}" }})"
+            description: "p99 = {{ "{{ $value | humanize }}" }} ms."
+
+        - alert: MilvusRequestErrorRateHigh
+          expr: |
+            label_replace(
+              sum by (k8s_namespace_name) (rate(milvus_proxy_req_count_total{job="{{ $job }}", status="fail"}[5m]))
+                / sum by (k8s_namespace_name) (rate(milvus_proxy_req_count_total{job="{{ $job }}", status="total"}[5m])),
+              "namespace", "$1", "k8s_namespace_name", "(.*)"
+            ) > {{ $t.requestErrorRatio }}
+          for: 10m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "Milvus istek hata oranı %{{ mulf $t.requestErrorRatio 100 }}'i aştı ({{ "{{ $labels.k8s_namespace_name }}" }})"
+            description: "Hata oranı = {{ "{{ $value | humanizePercentage }}" }}."
+
+        - alert: MilvusObjectStorageErrors
+          # Arıza kataloğu "depolama-hata"; eşikler milvus_object_storage kontrolüyle aynı
+          expr: |
+            label_replace(
+              (
+                sum by (k8s_namespace_name) (increase(internal_storage_op_count_total{job="{{ $job }}", status="fail"}[5m]))
+                  >= {{ $t.objectStorageMinFails }}
+              )
+              and
+              (
+                sum by (k8s_namespace_name) (increase(internal_storage_op_count_total{job="{{ $job }}", status="fail"}[5m]))
+                  / sum by (k8s_namespace_name) (increase(internal_storage_op_count_total{job="{{ $job }}", status=~"success|fail"}[5m]))
+                  > {{ $t.objectStorageFailRatio }}
+              ),
+              "namespace", "$1", "k8s_namespace_name", "(.*)"
+            )
+          for: 5m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "Milvus object storage işlemleri hata veriyor ({{ "{{ $labels.namespace }}" }})"
+            description: "Hata oranı = {{ "{{ $value | humanizePercentage }}" }}. GKE'de GCS, hedef ortamda Ceph erişimini kontrol edin."
+
+        - alert: MilvusTenantTelemetryStale
+          # Son {{ $t.telemetryLookback }}'te verisi olan ama son {{ $t.telemetryStaleFor }}'dır verisi gelmeyen tenant.
+          expr: |
+            label_replace(
+              count by (k8s_namespace_name) (last_over_time(milvus_rootcoord_timestamp{job="{{ $job }}"}[{{ $t.telemetryLookback }}]))
+                unless
+              count by (k8s_namespace_name) (last_over_time(milvus_rootcoord_timestamp{job="{{ $job }}"}[{{ $t.telemetryStaleFor }}])),
+              "namespace", "$1", "k8s_namespace_name", "(.*)"
+            )
+          for: 1m
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}" }}: {{ $t.telemetryStaleFor }}'dır Milvus metriği gelmiyor"
+            description: "VectorDB gateway → Kafka → telemetry-consumer hattından biri durmuş olabilir; bu tenant için raporlar kör noktalı."
+
+    # ------------------------------------------------------------------
+    # Kubernetes — VectorDB pod'ları ve diskler
+    # ------------------------------------------------------------------
+    - name: vectordb.kubernetes
+      rules:
+        - alert: VectorDBPodRestarting
+          expr: |
+            increase(kube_pod_container_status_restarts_total[15m]) >= {{ $t.podRestarts15m }}
+              and on (namespace, pod) {{ $svPods }}
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}/{{ $labels.pod }}" }} ({{ "{{ $labels.container }}" }}) 15 dakikada {{ "{{ $value | humanize }}" }} kez yeniden başladı"
+
+        - alert: VectorDBPodCrashLooping
+          expr: |
+            max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}) == 1
+              and on (namespace, pod) {{ $svPods }}
+          for: 5m
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}/{{ $labels.pod }}" }} ({{ "{{ $labels.container }}" }}) CrashLoopBackOff"
+
+        - alert: PVCUsageHigh
+          expr: |
+            kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > {{ $t.pvcUsageWarning }}
+              and on (namespace) ({{ $svNamespaces }} or {{ $infraNs }})
+          for: 10m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "PVC {{ "{{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}" }} %{{ mulf $t.pvcUsageWarning 100 }}'in üzerinde dolu"
+            description: "Doluluk = {{ "{{ $value | humanizePercentage }}" }}."
+
+        - alert: PVCUsageCritical
+          expr: |
+            kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes > {{ $t.pvcUsageCritical }}
+              and on (namespace) ({{ $svNamespaces }} or {{ $infraNs }})
+          for: 5m
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "PVC {{ "{{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}" }} %{{ mulf $t.pvcUsageCritical 100 }}'in üzerinde dolu"
+            description: "Doluluk = {{ "{{ $value | humanizePercentage }}" }}."
+
+        - alert: EphemeralStorageNearLimit
+          expr: |
+            max by (pod_namespace, pod_name) (ephemeral_storage_pod_usage)
+              / {{ $t.ephemeralLimitBytes }} > {{ $t.ephemeralUsageRatio }}
+              and on (pod_namespace, pod_name) {{ $svPodsEph }}
+          for: 5m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.pod_namespace }}/{{ $labels.pod_name }}" }} ephemeral storage 1Gi sınırının %{{ mulf $t.ephemeralUsageRatio 100 }}'ine yaklaştı"
+            description: "Kullanım/1Gi = {{ "{{ $value | humanizePercentage }}" }}. Sınır aşılırsa pod evict edilir."
+
+        - alert: EmptyDirNearSizeLimit
+          expr: |
+            max by (pod_namespace, pod_name, volume_name) (ephemeral_storage_container_volume_limit_percentage)
+              > {{ $t.emptyDirLimitPercent }}
+              and on (pod_namespace, pod_name) {{ $svPodsEph }}
+          for: 5m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.pod_namespace }}/{{ $labels.pod_name }}" }} emptyDir {{ "{{ $labels.volume_name }}" }} sizeLimit'in %{{ $t.emptyDirLimitPercent }}'ini aştı"
+            description: "Doluluk = %{{ "{{ $value | humanize }}" }}. Aşılırsa pod evict edilir (ör. access log 384Mi)."
+
+        - alert: PodEvicted
+          expr: |
+            max by (namespace, pod) (kube_pod_status_reason{reason="Evicted"}) > 0
+              and on (namespace, pod) {{ $svPods }}
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}/{{ $labels.pod }}" }} evict edildi"
+            description: "Çoğunlukla ephemeral storage veya bellek baskısı."
+
+        # etcd çoğunluğu: hazır üye sayısı yarıya ya da altına düştü. Sebebi (node kaybı, ağ, disk)
+        # ne olursa olsun tenant'ın meta veri deposu yazamaz; Milvus bileşenleri lease kaybedip çıkar.
+        - alert: MilvusEtcdQuorumLost
+          expr: |
+            (
+              2 * sum by (namespace, label_app_kubernetes_io_instance) (
+                kube_pod_status_ready{condition="true"}
+                * on (namespace, pod) group_left (label_app_kubernetes_io_instance)
+                  max by (namespace, pod, label_app_kubernetes_io_instance) (
+                    kube_pod_labels{label_app_kubernetes_io_name="etcd", label_{{ .Values.podLabel.name }}="{{ .Values.podLabel.value }}"}
+                  )
+              )
+              or on (namespace, label_app_kubernetes_io_instance) 0 * max by (namespace, label_app_kubernetes_io_instance) (
+                label_replace(kube_statefulset_replicas, "label_app_kubernetes_io_instance", "$1", "statefulset", "(.*-etcd)")
+              )
+            )
+            <= on (namespace, label_app_kubernetes_io_instance) max by (namespace, label_app_kubernetes_io_instance) (
+              label_replace(kube_statefulset_replicas, "label_app_kubernetes_io_instance", "$1", "statefulset", "(.*-etcd)")
+            )
+            and on (namespace) {{ $svNamespaces }}
+          for: {{ $t.etcdQuorumFor }}
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}" }}: etcd ({{ "{{ $labels.label_app_kubernetes_io_instance }}" }}) çoğunluğu kaybetti"
+            description: "Hazır etcd üyesi sayısı yarının altında; Milvus meta veri yazamaz, bileşenler yeniden başlar. Node kaybı, ağ ya da disk olabilir: placement/topology ile bak."
+
+        # Aynı tenant'ta birden çok bileşen birlikte yeniden başladı ve node'lar sağlam kaldı: ortak
+        # bir bağımlılık (etcd, object storage, operatör) arızası. Node kaybı (ör. spot) hariç tutulur,
+        # onun için ayrı sinyal var; bu alarm tekrarlayan node kayıplarında gürültü üretmez.
+        - alert: VectorDBTenantMassRestart
+          expr: |
+            count by (namespace) (
+              max by (namespace, pod) (increase(kube_pod_container_status_restarts_total[{{ $t.massRestartWindow }}]) > 0)
+              and on (namespace, pod) max by (namespace, pod) (kube_pod_labels{label_app_kubernetes_io_name="milvus", label_{{ .Values.podLabel.name }}="{{ .Values.podLabel.value }}"})
+            ) >= {{ $t.massRestartComponents }}
+            unless on (namespace) count by (namespace) (
+              max by (namespace, pod, node) (max_over_time(kube_pod_info[15m]))
+              and on (node) (
+                (min_over_time(kube_node_status_condition{condition="Ready", status="true"}[15m]) == 0)
+                or (changes(kube_node_created[15m]) > 0)
+              )
+            )
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.namespace }}" }}: {{ "{{ $value }}" }} Milvus bileşeni {{ $t.massRestartWindow }} içinde birlikte yeniden başladı (node'lar sağlam)"
+            description: "Ortak bağımlılık arızası olabilir: etcd, object storage ya da operatör. Node kaybı yok."
+
+    # ------------------------------------------------------------------
+    # Telemetri hattı — Kafka ve telemetry-consumer
+    # ------------------------------------------------------------------
+    - name: vectordb.telemetry
+      rules:
+        - alert: KafkaConsumerLagHigh
+          expr: |
+            (
+              sum by (consumergroup, topic) (kafka_consumergroup_lag)
+                > {{ $t.kafkaLagBaselineFactor }} * sum by (consumergroup, topic) (avg_over_time(kafka_consumergroup_lag[1d]))
+            )
+            and
+            sum by (consumergroup, topic) (kafka_consumergroup_lag) > {{ $t.kafkaLagMinMessages }}
+          for: 5m
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.consumergroup }}" }} / {{ "{{ $labels.topic }}" }} consumer lag baseline'ın {{ $t.kafkaLagBaselineFactor }} katını aştı"
+            description: "Lag = {{ "{{ $value | humanize }}" }} mesaj (en az {{ $t.kafkaLagMinMessages }})."
+
+        - alert: KafkaTopicNoIncomingData
+          expr: |
+            sum by (topic) (rate(kafka_topic_partition_current_offset{topic=~"{{ $t.kafkaContinuousTopics | join "|" }}"}[{{ $t.kafkaNoIncomingFor }}])) == 0
+          for: {{ $t.kafkaNoIncomingFor }}
+          labels:
+            severity: critical
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "{{ "{{ $labels.topic }}" }} topic'ine {{ $t.kafkaNoIncomingFor }}'dır yazılmıyor"
+            description: "VectorDB gateway'i Kafka'ya yazamıyor olabilir (bağlantı, SASL, kuyruk)."
+
+        - alert: TelemetryConsumerSendFailures
+          expr: |
+            sum by (exporter) (increase({__name__=~"otelcol_exporter_send_failed_(metric_points|log_records|spans)(_total)?", job=~".*telemetry-consumer.*"}[10m])) > 0
+          labels:
+            severity: warning
+            {{- include "alerts.ruleLabels" . | nindent 12 }}
+          annotations:
+            summary: "telemetry-consumer {{ "{{ $labels.exporter }}" }} son 10 dakikada kayıt düşürdü"
+            description: "Düşen kayıt = {{ "{{ $value | humanize }}" }}. Prometheus/Loki/Tempo erişimini kontrol edin."

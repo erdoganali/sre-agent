@@ -1,0 +1,36 @@
+# sre-agent çekirdek yapılandırması — GKE (cluster içi adresler).
+# Paket yolları --base'e göredir (image'da /app, yerelde repo kökü).
+packs:
+  - path: packs/vectordb
+
+prometheus_url: http://monitoring-kube-prometheus-prometheus.monitoring:9090
+loki_url: http://loki.monitoring:3100
+tempo_url: http://tempo.monitoring:3200
+grafana_url: http://monitoring-grafana.monitoring:80
+
+tls_endpoints:
+  - host: telemetry-kafka-bootstrap.kafka.svc
+    port: 9095
+
+# Grafana anotasyonundaki rapor bağlantısı (ingress, basic auth)
+report_base_url: http://sre-agent.example.internal
+
+# Veri tazeliği sorguları ürüne özgüdür ve paketlerde durur (packs/*/pack.yaml, `freshness`).
+# Buraya yalnızca ortama özgü olanlar yazılır.
+freshness: []
+
+# Etiketsiz raporların saklama süresi (gün); etiketliler hiç silinmez. Veritabanı küçük (2026-10:
+# 250 rapor ≈ 2 MB); süre, sonradan etiketleme için pencere bırakır.
+retention_days: 30
+
+# Karar noktaları (T2.5, ADR-028): gölge mod — kurallar karar verir, model arka planda koşup
+# yalnız kaydedilir. Model erişilemezken model kararları hata olarak kaydedilir (bağlantı 5 sn'de
+# düşer); kural kararları yine yazılır.
+decisions:
+  mode: shadow
+
+# Investigation graph (T3.2): shadow — incident 3 dk sessizleşince graph bir kez koşar, sonucu
+# incident'a yazılır; raporda Faz 1 etkili kalır. Model erişilemezken yedek yolla rapor üretir.
+investigation:
+  mode: shadow
+  quiet_s: 180

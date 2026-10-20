@@ -1,0 +1,18 @@
+{{- if .Values.dashboard.enabled }}
+# Grafana sidecar'ı (kube-prometheus-stack) grafana_dashboard=1 etiketli ConfigMap'leri tüm
+# namespace'lerde yükler. Raporlar organizasyon anotasyonu olduğu için etiketle (sre-agent) listelenir.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: sre-agent
+  annotations:
+    grafana_folder: SRE Agent
+data:
+  sre-agent-reports.json: |
+    {{- /* Bağlantılar ingress adresine göre (dosyada GKE adresi yazılı) */ -}}
+    {{- $base := printf "http://%s" (.Values.ingress.host | default "sre-agent.example.internal") }}
+    {{- .Files.Get "files/dashboard.json" | replace "http://sre-agent.example.internal" $base | nindent 4 }}
+{{- end }}

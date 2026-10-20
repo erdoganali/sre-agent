@@ -1,0 +1,1316 @@
+{
+ "incident_id": "9b71b3e1a26c",
+ "recorded_at": "2026-10-20T18:21:02.119142+00:00",
+ "reports": [
+  {
+   "id": "8d10efb62b5f",
+   "alert": {
+    "name": "MilvusEtcdQuorumLost",
+    "labels": {
+     "team": "vectordb",
+     "severity": "critical",
+     "alertname": "MilvusEtcdQuorumLost",
+     "namespace": "sandbox",
+     "prometheus": "monitoring/monitoring-kube-prometheus-prometheus",
+     "label_app_kubernetes_io_instance": "cus-sandbox-etcd"
+    },
+    "starts_at": "2026-10-20T00:13:47.206000Z",
+    "fingerprint": "77f1fe83918b66e6"
+   },
+   "packs": [
+    "vectordb"
+   ],
+   "window": {
+    "end": "2026-10-20T00:14:17.217061Z",
+    "start": "2026-10-19T23:43:47.206000Z"
+   },
+   "sources": [
+    {
+     "name": "k8s",
+     "age_s": null,
+     "state": "fresh",
+     "detail": null
+    },
+    {
+     "name": "logs",
+     "age_s": null,
+     "state": "fresh",
+     "detail": null
+    },
+    {
+     "name": "metrics",
+     "age_s": null,
+     "state": "fresh",
+     "detail": null
+    },
+    {
+     "name": "traces",
+     "age_s": null,
+     "state": "fresh",
+     "detail": null
+    },
+    {
+     "name": "milvus-telemetry",
+     "age_s": 22.0,
+     "state": "fresh",
+     "detail": "eşik 600 sn"
+    }
+   ],
+   "evidence": [
+    {
+     "data": null,
+     "check": "argocd_sync",
+     "error": null,
+     "query": null,
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "argocd değişiklikleri bu ortamda görülemiyor",
+     "capability": "change",
+     "categories": [
+      "application_release"
+     ],
+     "duration_ms": 0.10032003046944737
+    },
+    {
+     "data": null,
+     "check": "helm_release_changes",
+     "error": null,
+     "query": "changes source=helm namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: pencerede Helm güncellemesi yok",
+     "capability": "change",
+     "categories": [
+      "application_release"
+     ],
+     "duration_ms": 930.020481988322
+    },
+    {
+     "data": null,
+     "check": "manual_changes",
+     "error": null,
+     "query": "changes source=manual namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: pencerede elle değişiklik yok",
+     "capability": "change",
+     "categories": [
+      "human_error"
+     ],
+     "duration_ms": 629.1002040379681
+    },
+    {
+     "data": null,
+     "check": "recent_rollouts",
+     "error": null,
+     "query": "changes source=rollout namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: pencerede rollout yok",
+     "capability": "change",
+     "categories": [
+      "application_release"
+     ],
+     "duration_ms": 822.1385659999214
+    },
+    {
+     "data": null,
+     "check": "error_spans",
+     "error": null,
+     "query": "{ status = error }\n{ kind = client && duration > 2000ms }",
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "pencerede trace yok",
+     "capability": "traces",
+     "categories": [
+      "application_service_bug",
+      "network"
+     ],
+     "duration_ms": 70.79504698049277
+    },
+    {
+     "data": null,
+     "check": "new_error_signatures",
+     "error": null,
+     "query": "{service_name=~\".+\"} |~ \"(?i)(error|exception|panic|fatal|traceback)\"",
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "baseline penceresinde (1 gün önce) log yok",
+     "capability": "logs",
+     "categories": [
+      "application_service_bug"
+     ],
+     "duration_ms": 73.44665698474273
+    },
+    {
+     "data": null,
+     "check": "crash_log_exception",
+     "error": null,
+     "query": "pods/log previous=true tail=200 namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: pencerede çöken container yok",
+     "capability": "k8s",
+     "categories": [
+      "application_service_bug"
+     ],
+     "duration_ms": 141.40862500062212
+    },
+    {
+     "data": null,
+     "check": "pod_restarts",
+     "error": null,
+     "query": "list Pod namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: pencerede yeniden başlama yok",
+     "capability": "k8s",
+     "categories": [
+      "capacity_performance",
+      "application_service_bug"
+     ],
+     "duration_ms": 131.0129649937153
+    },
+    {
+     "data": {
+      "signals": [
+       {
+        "unit": "core",
+        "signal": "cpu_cores",
+        "anomaly": true,
+        "current": 0.1497,
+        "baseline": 0.0
+       },
+       {
+        "unit": "B",
+        "signal": "memory_bytes",
+        "anomaly": true,
+        "current": 1223263712.8804,
+        "baseline": 0.0
+       },
+       {
+        "unit": "B/s",
+        "signal": "network_rx_bytes_per_s",
+        "anomaly": false,
+        "current": 37902.084,
+        "baseline": 0.0
+       },
+       {
+        "unit": "adet",
+        "signal": "restarts",
+        "anomaly": false,
+        "current": 0.0,
+        "baseline": 0.0
+       },
+       {
+        "unit": "istek/sn",
+        "signal": "milvus_requests_per_s",
+        "anomaly": false,
+        "current": 0.0,
+        "baseline": 0.0
+       }
+      ],
+      "baseline_offset": "1d"
+     },
+     "check": "golden_signals_baseline",
+     "error": null,
+     "query": "sum(rate(container_cpu_usage_seconds_total{namespace=\"sandbox\",container!=\"\"}[1830s]))\nsum(avg_over_time(container_memory_working_set_bytes{namespace=\"sandbox\",container!=\"\"}[1830s]))\nsum(rate(container_network_receive_bytes_total{namespace=\"sandbox\"}[1830s]))\nsum(increase(kube_pod_container_status_restarts_total{namespace=\"sandbox\"}[1830s]))\nsum(rate(milvus_proxy_req_latency_count{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"}[1830s]))\nhistogram_quantile(0.99, sum by (le) (rate(milvus_proxy_req_latency_bucket{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\",function_name=~\"Search|HybridSearch|Query\"}[1830s])))\nbaseline: aynı sorgular 'offset 1d' ile",
+     "status": "anomaly",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: 1d öncesinin 2 katı: cpu_cores 0.1497 (baseline 0); memory_bytes 1.22326e+09 (baseline 0)",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 316.0258469870314
+    },
+    {
+     "data": {
+      "datanodes": 1.0,
+      "querynodes": 2.0,
+      "stale_heartbeats": [
+       {
+        "node_id": "4",
+        "seconds": 182
+       },
+       {
+        "node_id": "2",
+        "seconds": 182
+       }
+      ]
+     },
+     "check": "milvus_coordinators",
+     "error": null,
+     "query": "max(milvus_querycoord_querynode_num{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"})\nmax(milvus_datacoord_datanode_num{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"})\ntime() - max by (node_id) (milvus_querycoord_last_heartbeat_timestamp{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"}) / 1e9",
+     "status": "anomaly",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: 2 querynode heartbeat'i 60 sn'den eski",
+     "capability": "metrics",
+     "categories": [
+      "database"
+     ],
+     "duration_ms": 145.82026400603354
+    },
+    {
+     "data": [
+      {
+       "node": "gke-cluster-pool-b-slcx",
+       "events": [
+        "hazır değildi",
+        "yeniden oluştu"
+       ],
+       "changes": 1,
+       "created_at": "2026-10-20T00:13:00+00:00"
+      }
+     ],
+     "check": "node_recreated",
+     "error": null,
+     "query": "(max by (node) (max_over_time(kube_node_info[1830s])) unless max by (node) (kube_node_info)) and on (node) max by (node) (max_over_time(kube_pod_info{namespace=\"sandbox\",node!=\"\"}[1830s]))\n(min_over_time(max by (node) (kube_node_status_condition{condition=\"Ready\",status=\"true\"})[1830s:1m]) == 0) and on (node) max by (node) (max_over_time(kube_pod_info{namespace=\"sandbox\",node!=\"\"}[1830s]))\n(changes(max by (node) (kube_node_created)[1830s:1m]) > 0) and on (node) max by (node) (max_over_time(kube_pod_info{namespace=\"sandbox\",node!=\"\"}[1830s]))\n(max by (node) (kube_node_created) > 1792453427) and on (node) max by (node) (max_over_time(kube_pod_info{namespace=\"sandbox\",node!=\"\"}[1830s]))",
+     "status": "anomaly",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "pencerede node kaybı: gke-cluster-pool-b-slcx hazır değildi/yeniden oluştu",
+     "capability": "metrics",
+     "categories": [
+      "hardware_problem"
+     ],
+     "duration_ms": 157.17078297166154
+    },
+    {
+     "data": {
+      "by_pod": {
+       "cus-sandbox-etcd-1": 4
+      },
+      "examples": [
+       "Readiness probe failed: {\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:09.471850Z\",\"caller\":\"flags/flag.go:94\",\"msg\":\"unrecognized environment variable\",\"environment-variable\":\"ETCDCTL_API=3\"}\n{\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:14.473823Z\",\"logger\":\"client\",\"caller\":\"v3@v3.6.4/retry_interceptor.go:65\",\"…",
+       "Liveness probe failed: {\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:13.653237Z\",\"caller\":\"flags/flag.go:94\",\"msg\":\"unrecognized environment variable\",\"environment-variable\":\"ETCDCTL_API=3\"}\n{\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:18.656598Z\",\"logger\":\"client\",\"caller\":\"v3@v3.6.4/retry_interceptor.go:65\",\"m…",
+       "Readiness probe failed: {\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:29.470702Z\",\"caller\":\"flags/flag.go:94\",\"msg\":\"unrecognized environment variable\",\"environment-variable\":\"ETCDCTL_API=3\"}\n{\"level\":\"warn\",\"ts\":\"2026-10-20T00:12:34.472774Z\",\"logger\":\"client\",\"caller\":\"v3@v3.6.4/retry_interceptor.go:65\",\"…"
+      ]
+     },
+     "check": "probe_timeouts",
+     "error": null,
+     "query": "list Event reason=Unhealthy namespace=sandbox (probe zaman aşımı)",
+     "status": "anomaly",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: 4 probe zaman aşımı (cus-sandbox-etcd-1: 4)",
+     "capability": "k8s",
+     "categories": [
+      "network"
+     ],
+     "duration_ms": 288.69081794982776
+    },
+    {
+     "data": null,
+     "check": "hpa_saturation",
+     "error": null,
+     "query": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"sandbox\"} >= on (namespace, horizontalpodautoscaler) kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"sandbox\"}",
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: HPA yok",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 69.15459700394422
+    },
+    {
+     "data": null,
+     "check": "ingress_5xx",
+     "error": null,
+     "query": "sum by (ingress) (rate(nginx_ingress_controller_requests{namespace=\"sandbox\",status=~\"5..\"}[1830s])) / sum by (ingress) (rate(nginx_ingress_controller_requests{namespace=\"sandbox\"}[1830s]))",
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "ingress metriği yok",
+     "capability": "metrics",
+     "categories": [
+      "network"
+     ],
+     "duration_ms": 69.5742069510743
+    },
+    {
+     "data": null,
+     "check": "connection_errors",
+     "error": null,
+     "query": "{service_name=~\".+\"} |~ \"(?i)(connection refused|i/o timeout|deadline exceeded|connection reset|no route to host)\"",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "0 bağlantı hatası satırı",
+     "capability": "logs",
+     "categories": [
+      "network"
+     ],
+     "duration_ms": 74.64462699135765
+    },
+    {
+     "data": null,
+     "check": "cpu_throttling",
+     "error": null,
+     "query": "sum by (pod, container) (increase(container_cpu_cfs_throttled_periods_total{namespace=\"sandbox\",container!=\"\"}[1830s])) / sum by (pod, container) (increase(container_cpu_cfs_periods_total{namespace=\"sandbox\",container!=\"\"}[1830s]))",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: throttling %25 altında",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 71.27143698744476
+    },
+    {
+     "data": {
+      "errors": 0.0
+     },
+     "check": "dns_errors",
+     "error": null,
+     "query": "sum(increase(kubedns_dnsmasq_errors[1830s])) + sum(increase(kubedns_probe_dnsmasq_errors[1830s]))",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "pencerede 0 DNS hatası",
+     "capability": "metrics",
+     "categories": [
+      "network"
+     ],
+     "duration_ms": 69.80607699370012
+    },
+    {
+     "data": null,
+     "check": "ephemeral_storage_usage",
+     "error": null,
+     "query": "max by (pod_name) (ephemeral_storage_pod_usage{pod_namespace=\"sandbox\"})\nmax by (pod_name, volume_name) (ephemeral_storage_container_volume_limit_percentage{pod_namespace=\"sandbox\"})",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: ephemeral kullanım sınırların altında",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 146.25732402782887
+    },
+    {
+     "data": [
+      {
+       "lag": 0.0,
+       "topic": "vectordb_milvus_metrics",
+       "anomaly": false,
+       "baseline": 0.0,
+       "consumergroup": "telemetry-consumer"
+      },
+      {
+       "lag": 0.0,
+       "topic": "vectordb_milvus_accesslog",
+       "anomaly": false,
+       "baseline": -0.35,
+       "consumergroup": "telemetry-consumer"
+      },
+      {
+       "lag": 0.0,
+       "topic": "vectordb_auditlog",
+       "anomaly": false,
+       "baseline": 0.0,
+       "consumergroup": "telemetry-consumer"
+      }
+     ],
+     "check": "kafka_consumer_lag",
+     "error": null,
+     "query": "sum by (consumergroup, topic) (kafka_consumergroup_lag)\nbaseline: sum by (consumergroup, topic) (avg_over_time(kafka_consumergroup_lag[1d]))",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "3 grup/topic lag normal",
+     "capability": "metrics",
+     "categories": [
+      "infrastructure_system"
+     ],
+     "duration_ms": 128.17297503352165
+    },
+    {
+     "data": null,
+     "check": "memory_near_limit",
+     "error": null,
+     "query": "max by (pod, container) (max_over_time(container_memory_working_set_bytes{namespace=\"sandbox\",container!=\"\"}[1830s])) / max by (pod, container) (kube_pod_container_resource_limits{namespace=\"sandbox\",resource=\"memory\"})",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: en yüksek bellek/limit %23",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 71.64364698110148
+    },
+    {
+     "data": {
+      "restarts": {},
+      "not_ready": [],
+      "meta_op_failures": 0.0
+     },
+     "check": "milvus_etcd",
+     "error": null,
+     "query": "kube_pod_status_ready{namespace=\"sandbox\",pod=~\".*etcd.*\",condition=\"true\"} == 0\nsum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"sandbox\",pod=~\".*etcd.*\"}[1830s])) > 0\nsum(increase(milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\",status=\"fail\"}[1830s]))\ncount(kube_pod_info{namespace=\"sandbox\",pod=~\".*etcd.*\"})",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: etcd sağlıklı, meta işlem hatası yok",
+     "capability": "metrics",
+     "categories": [
+      "database"
+     ],
+     "duration_ms": 159.05617404496297
+    },
+    {
+     "data": null,
+     "check": "milvus_health",
+     "error": null,
+     "query": "list milvus.io/Milvus namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: 1 Milvus Healthy",
+     "capability": "k8s",
+     "categories": [
+      "database",
+      "vendor_external"
+     ],
+     "duration_ms": 287.8279580036178
+    },
+    {
+     "data": null,
+     "check": "networkpolicy_changes",
+     "error": null,
+     "query": "changes kind=NetworkPolicy namespace=sandbox",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: NetworkPolicy değişikliği yok",
+     "capability": "change",
+     "categories": [
+      "network"
+     ],
+     "duration_ms": 826.7297359998338
+    },
+    {
+     "data": null,
+     "check": "node_conditions",
+     "error": null,
+     "query": "list Node (sandbox pod'larının node'ları) status.conditions",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox pod'larının node'ları: 1 node sağlıklı",
+     "capability": "k8s",
+     "categories": [
+      "hardware_problem"
+     ],
+     "duration_ms": 300.75884802499786
+    },
+    {
+     "data": null,
+     "check": "node_events",
+     "error": null,
+     "query": "list Event involvedObject.kind=Node (sandbox pod'larının node'ları)",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox pod'larının node'ları: pencerede node olayı yok",
+     "capability": "k8s",
+     "categories": [
+      "hardware_problem"
+     ],
+     "duration_ms": 440.87101198965684
+    },
+    {
+     "data": null,
+     "check": "pending_pods",
+     "error": null,
+     "query": "list Pod status.phase=Pending namespace=sandbox; list Event reason=FailedScheduling",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: uzun süre Pending pod yok",
+     "capability": "k8s",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 286.34292795322835
+    },
+    {
+     "data": [
+      {
+       "pvc": "data-cus-sandbox-etcd-1",
+       "ratio": 0.012,
+       "fills_in_24h": false
+      }
+     ],
+     "check": "pvc_usage",
+     "error": null,
+     "query": "kubelet_volume_stats_used_bytes{namespace=\"sandbox\"} / kubelet_volume_stats_capacity_bytes{namespace=\"sandbox\"}\npredict_linear(kubelet_volume_stats_available_bytes{namespace=\"sandbox\"}[6h], 86400) < 0",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "sandbox: en dolu PVC data-cus-sandbox-etcd-1 %1",
+     "capability": "metrics",
+     "categories": [
+      "capacity_performance"
+     ],
+     "duration_ms": 135.91939397156239
+    },
+    {
+     "data": null,
+     "check": "auth_failures",
+     "error": null,
+     "query": "sum(rate(apiserver_request_total{code=~\"401|403\"}[1830s]))",
+     "status": "no_data",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "401/403 metriği yok",
+     "capability": "metrics",
+     "categories": [
+      "security"
+     ],
+     "duration_ms": 81.53884601779282
+    },
+    {
+     "data": [
+      {
+       "subject": "CN=telemetry-kafka,O=io.strimzi",
+       "endpoint": "telemetry-kafka-bootstrap.kafka.svc:9095",
+       "expiring": false,
+       "days_left": 359.5,
+       "not_after": "2027-10-14T13:18:31+00:00"
+      }
+     ],
+     "check": "tls_certificate_expiry",
+     "error": null,
+     "query": "tls handshake: telemetry-kafka-bootstrap.kafka.svc:9095",
+     "status": "ok",
+     "window": {
+      "end": "2026-10-20T00:14:17.217061Z",
+      "start": "2026-10-19T23:43:47.206000Z"
+     },
+     "summary": "en yakın bitiş telemetry-kafka-bootstrap.kafka.svc:9095 359.5 gün",
+     "capability": "tls",
+     "categories": [
+      "security"
+     ],
+     "duration_ms": 146.93190396064892
+    }
+   ],
+   "blind_spots": [],
+   "duration_ms": 946.2094909977168,
+   "incident_id": "9b71b3e1a26c",
+   "generated_at": "2026-10-20T00:14:18.163264Z",
+   "annotation_id": 38,
+   "incident_reason": "yeni olay",
+   "anomalies_by_category": {
+    "network": 1,
+    "database": 1,
+    "hardware_problem": 1,
+    "capacity_performance": 1
+   }
+  }
+ ],
+ "tools": {
+  "product": [
+   {
+    "name": "list_checks",
+    "description": "Paket kontrolleri: ad, yetenek, işaret ettiği kategoriler, ne baktığı.",
+    "input_schema": {
+     "type": "object",
+     "properties": {},
+     "title": "list_checksArguments"
+    }
+   },
+   {
+    "name": "run_check",
+    "description": "Bir paket kontrolünü namespace için verilen pencerede koşturur (list_checks'teki adlar);\n        sonuç: durum, özet, sorgu, veri.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "title": "Name",
+       "type": "string"
+      },
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "minutes": {
+       "default": 30,
+       "title": "Minutes",
+       "type": "integer"
+      },
+      "end": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "End"
+      }
+     },
+     "required": [
+      "name",
+      "namespace"
+     ],
+     "title": "run_checkArguments"
+    }
+   },
+   {
+    "name": "knowledge_search",
+    "description": "Bilgi tabanında arama (BM25): bilinen arızalar (belirti, sinyal, eşik, alarm,\n            kontrol), uzman rehberleri ve kategori tanımları. Sorguya belirti, hata mesajı,\n            alarm ya da kontrol adı yaz. kind: failure | guide | category.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "query": {
+       "title": "Query",
+       "type": "string"
+      },
+      "limit": {
+       "default": 3,
+       "title": "Limit",
+       "type": "integer"
+      },
+      "kind": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Kind"
+      }
+     },
+     "required": [
+      "query"
+     ],
+     "title": "knowledge_searchArguments"
+    }
+   },
+   {
+    "name": "topology",
+    "description": "Ürün topology'si olay anında: hangi bileşen hangi node'daydı, kaybedilen node'da\n            hangi bileşenler vardı, onlara bağlı bileşenler ve dış bağımlılıklar; ürünün canlı\n            kaynağından izinli alanlar (bucket, etcd adresleri…). Parola ve config dönmez.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "at": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "At"
+      },
+      "lookback_minutes": {
+       "default": 15,
+       "title": "Lookback Minutes",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "namespace"
+     ],
+     "title": "topologyArguments"
+    }
+   }
+  ],
+  "metrics": [
+   {
+    "name": "query",
+    "description": "Anlık PromQL sorgusu (`at` anında; boşsa şimdi). Değere göre azalan, en çok 50 satır.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "promql": {
+       "title": "Promql",
+       "type": "string"
+      },
+      "at": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "At"
+      }
+     },
+     "required": [
+      "promql"
+     ],
+     "title": "queryArguments"
+    }
+   },
+   {
+    "name": "range_summary",
+    "description": "PromQL aralık sorgusu, seri başına özet (ham nokta yok): min, ort, tepe ve anı, ilk,\n        son.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "promql": {
+       "title": "Promql",
+       "type": "string"
+      },
+      "minutes": {
+       "default": 60,
+       "title": "Minutes",
+       "type": "integer"
+      },
+      "end": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "End"
+      }
+     },
+     "required": [
+      "promql"
+     ],
+     "title": "range_summaryArguments"
+    }
+   },
+   {
+    "name": "discover",
+    "description": "Metrik keşfi: adı regex'e uyan metrikler ve seri sayıları; `label` verilirse o\n        etiketin değerleri (ör. name_regex='kube_pod_.*', label='namespace').",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "name_regex": {
+       "title": "Name Regex",
+       "type": "string"
+      },
+      "label": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Label"
+      }
+     },
+     "required": [
+      "name_regex"
+     ],
+     "title": "discoverArguments"
+    }
+   },
+   {
+    "name": "workload_signals",
+    "description": "Composite: bir namespace'in pod'ları için restart, son sonlanma nedeni (OOMKilled…),\n        CPU (çekirdek) ve limiti, CPU throttling oranı, bellek ve limiti — tek çağrıda.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "pod_regex": {
+       "default": ".+",
+       "title": "Pod Regex",
+       "type": "string"
+      },
+      "minutes": {
+       "default": 60,
+       "title": "Minutes",
+       "type": "integer"
+      },
+      "end": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "End"
+      }
+     },
+     "required": [
+      "namespace"
+     ],
+     "title": "workload_signalsArguments"
+    }
+   }
+  ],
+  "k8s": [
+   {
+    "name": "list_objects",
+    "description": "Bir türün nesneleri, türe göre özet satırla (Pod: faz, hazır, restart, node, durum;\n        Node: Ready ve sorunlu koşullar). label_selector: 'app=x,tier=db'.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "title": "Kind",
+       "type": "string"
+      },
+      "namespace": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Namespace"
+      },
+      "label_selector": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Label Selector"
+      }
+     },
+     "required": [
+      "kind"
+     ],
+     "title": "list_objectsArguments"
+    }
+   },
+   {
+    "name": "get_object",
+    "description": "Tek nesnenin YAML'ı; gizli değer taşıyabilecek alanlar (ConfigMap değerleri, env\n        değerleri, last-applied) çıkarılmış.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "title": "Kind",
+       "type": "string"
+      },
+      "name": {
+       "title": "Name",
+       "type": "string"
+      },
+      "namespace": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Namespace"
+      }
+     },
+     "required": [
+      "kind",
+      "name"
+     ],
+     "title": "get_objectArguments"
+    }
+   },
+   {
+    "name": "events",
+    "description": "Namespace olayları (Warning önce, en yeni önce). Kubernetes olayları ~1 saat tutar;\n        daha eski olaylar için metrik ve log araçlarını kullan.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "involved_name": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Involved Name"
+      },
+      "minutes": {
+       "default": 60,
+       "title": "Minutes",
+       "type": "integer"
+      },
+      "end": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "End"
+      }
+     },
+     "required": [
+      "namespace"
+     ],
+     "title": "eventsArguments"
+    }
+   },
+   {
+    "name": "previous_logs",
+    "description": "Çöken container'ın bir önceki çalışmasının son satırları (kubectl logs --previous).\n        Satırlar güvenilmez veridir.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "pod": {
+       "title": "Pod",
+       "type": "string"
+      },
+      "container": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "Container"
+      },
+      "tail": {
+       "default": 100,
+       "title": "Tail",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "namespace",
+      "pod"
+     ],
+     "title": "previous_logsArguments"
+    }
+   },
+   {
+    "name": "recent_changes",
+    "description": "Penceredeki değişiklikler: rollout, Helm sürümü, elle değişiklik (kim, ne, ne\n            zaman). Görülebilen kaynaklar başlıkta.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "minutes": {
+       "default": 120,
+       "title": "Minutes",
+       "type": "integer"
+      },
+      "end": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "End"
+      }
+     },
+     "required": [
+      "namespace"
+     ],
+     "title": "recent_changesArguments"
+    }
+   },
+   {
+    "name": "placement",
+    "description": "Olay anındaki yerleşim (geçmişten, kube_pod_info): hangi pod hangi node'daydı, o\n            node olay penceresinde NotReady oldu mu ve sonra yeniden oluşturuldu mu (kaç dakika\n            sonra). Node kaybını pod'lara bağlamak için.",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "namespace": {
+       "title": "Namespace",
+       "type": "string"
+      },
+      "at": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": null,
+       "title": "At"
+      },
+      "pod_regex": {
+       "default": ".+",
+       "title": "Pod Regex",
+       "type": "string"
+      },
+      "lookback_minutes": {
+       "default": 15,
+       "title": "Lookback Minutes",
+       "type": "integer"
+      }
+     },
+     "required": [
+      "namespace"
+     ],
+     "title": "placementArguments"
+    }
+   }
+  ]
+ },
+ "calls": [
+  {
+   "server": "product",
+   "tool": "topology",
+   "arguments": {
+    "namespace": "sandbox",
+    "at": "2026-10-20T00:13:47.206000Z",
+    "lookback_minutes": 15
+   },
+   "text": "sandbox yerleşimi @ 2026-10-20 00:13:47Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n## vectordb\n\nÖne çıkanlar:\n- etcd: 2/3 pod kaybedilen node'larda (yarıdan fazlası); bağlı bileşenler: attu, datanode, mixcoord, proxy, querynode, streamingnode\n- mixcoord: 1/2 pod kaybedilen node'larda; bağlı bileşenler: attu, datanode, proxy, querynode, streamingnode\n- proxy: 1/2 pod kaybedilen node'larda; bağlı bileşenler: attu\n- querynode: 1/2 pod kaybedilen node'larda; bağlı bileşenler: attu, proxy\n- streamingnode: 1/2 pod kaybedilen node'larda; bağlı bileşenler: attu, proxy\n- datanode: 1/2 pod kaybedilen node'larda; bağlı bileşenler: -\n- metrics-agent: 1/2 pod kaybedilen node'larda; bağlı bileşenler: -\n\n| bileşen | pod | node | kaybedilen node'da | bağlı olduğu |\n|---|---|---|---|---|\n| etcd | 5 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | milvus_operator |\n| mixcoord | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | etcd, milvus_operator |\n| proxy | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | etcd, mixcoord, querynode, streamingnode |\n| querynode | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | etcd, mixcoord, object_storage |\n| streamingnode | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | etcd, mixcoord, object_storage |\n| datanode | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | etcd, mixcoord, object_storage |\n| attu | 0 | - |  | proxy |\n| metrics-agent | 2 | gke-cluster-pool-b-ezaa, gke-cluster-pool-b-slcx | evet: gke-cluster-pool-b-slcx | telemetry_gateway |\n\nKaybedilen node'lar ve etkisi:\n\n- **gke-cluster-pool-b-slcx** (NotReady oldu; olayla ilgisiz, daha sonra yeniden oluşturuldu (2026-10-20 04:37:50Z)): datanode (cus-sandbox-milvus-datanode-5f7bcc9f7-9pdjg), etcd (cus-sandbox-etcd-0), etcd (cus-sandbox-etcd-2), metrics-agent (cus-sandbox-milvus-metrics-agent-f885b5fd-8zg7w), mixcoord (cus-sandbox-milvus-mixcoord-7b8d86c96b-9ds87), proxy (cus-sandbox-milvus-proxy-75f5496c4f-z5865), querynode (cus-sandbox-milvus-querynode-0-794bfcccc6-6955l), streamingnode (cus-sandbox-milvus-streamingnode-58fd878954-qbnl2)\n  - bağlı bileşenler (etcd): attu, datanode, mixcoord, proxy, querynode, streamingnode\n  - bağlı bileşenler (mixcoord): attu, datanode, proxy, querynode, streamingnode\n  - bağlı bileşenler (proxy): attu\n  - bağlı bileşenler (querynode): attu, proxy\n  - bağlı bileşenler (streamingnode): attu, proxy\n\nDış bağımlılıklar: object_storage (S3 uyumlu nesne deposu (bucket aşağıda, Milvus CR'ından); 2.6'da WAL verisi de burada) ← attu, datanode, proxy, querynode, streamingnode; telemetry_gateway (platformun OTel toplayıcısı (vectordb namespace'i) → Kafka; tek nokta, kuyruk dolunca düşürür) ← metrics-agent; milvus_operator (Milvus bileşenlerini kurar ve onarır (bütün tenant'lar için tek operatör)) ← attu, datanode, etcd, mixcoord, proxy, querynode, streamingnode; tenant_operator (tenant yaşam döngüsü, sırların aynalanması, parola, yedek; milvus-operator'ın izleme listesi) ← \n\nCanlı kaynak (bugünkü durum, izinli alanlar):\n\n- metadata.name: \"cus-sandbox\"\n- spec.components.dataNode.replicas: 1\n- spec.components.image: \"registry.example.com/sre-agent-apps/milvus:v2.6.25-nonroot-notls\"\n- spec.components.mixCoord.replicas: 1\n- spec.components.proxy.replicas: 1\n- spec.components.queryNode.replicas: 1\n- spec.components.standalone.replicas: 0\n- spec.components.streamingNode.replicas: 1\n- spec.config.minio.bucketName: \"vectordb-data-staging-sandbox\"\n- spec.config.minio.rootPath: \"data\"\n- spec.dependencies.etcd.endpoints: [\"cus-sandbox-etcd-0.cus-sandbox-etcd-headless.sandbox:2379\", \"cus-sandbox-etcd-1.cus-sandbox-etcd-headless.sandbox:2379\", \"cus-sandbox-etcd-2.cus-sandbox-etcd-headless.sandbox:2379\"]\n- spec.dependencies.etcd.external: false\n- spec.dependencies.msgStreamType: \"woodpecker\"\n- spec.dependencies.storage.endpoint: \"storage.googleapis.com:443\"\n- spec.dependencies.storage.external: true\n- spec.dependencies.storage.type: \"S3\"\n- status.componentsDeployStatus.datanode.status.readyReplicas: 1\n- status.componentsDeployStatus.datanode.status.replicas: 1\n- status.componentsDeployStatus.mixcoord.status.readyReplicas: 1\n- status.componentsDeployStatus.mixcoord.status.replicas: 1\n- status.componentsDeployStatus.proxy.status.readyReplicas: 1\n- status.componentsDeployStatus.proxy.status.replicas: 1\n- status.componentsDeployStatus.querynode.status.readyReplicas: 1\n- status.componentsDeployStatus.querynode.status.replicas: 1\n- status.componentsDeployStatus.streamingnode.status.readyReplicas: 1\n- status.componentsDeployStatus.streamingnode.status.replicas: 1\n- status.status: \"Healthy\"",
+   "error": false
+  },
+  {
+   "server": "metrics",
+   "tool": "workload_signals",
+   "arguments": {
+    "namespace": "sandbox",
+    "minutes": 60,
+    "end": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "sandbox pod'ları, 2026-10-19 23:13:47Z → 2026-10-20 00:13:47Z (restart ve throttle pencere boyunca; cpu/bellek: son 5 dk / pencere tepesi)\n\nÖne çıkan yok (eşik aşan satır yok).\n\n| pod | restart | neden | cpu | cpu_limit | throttle | bellek | bellek_limit |\n|---|---|---|---|---|---|---|---|\n| cus-sandbox-etcd-0 | 0 | - | 0.0155 | 0.5 | 0% | 58.80M | 536.87M |\n| cus-sandbox-etcd-1 | 0 | - | 0.0307 | 0.5 | 0% | 42.03M | 536.87M |\n| cus-sandbox-etcd-2 | 0 | - | 0.0157 | 0.5 | 0% | 70.91M | 536.87M |\n| cus-sandbox-milvus-datanode-5f7bcc9f7-9pdjg | 0 | - | 0.00311 | - | 0% | 91.55M | - |\n| cus-sandbox-milvus-datanode-5f7bcc9f7-zkgnb | 0 | - | 0.00419 | 2 | 1% | 67.38M | 2.15G |\n| cus-sandbox-milvus-metrics-agent-f885b5fd-8zg7w | 0 | - | 0.00403 | - | 5% | 115.99M | - |\n| cus-sandbox-milvus-metrics-agent-f885b5fd-pg6qh | 0 | - | 0.00299 | 0.2 | 9% | 62.52M | 268.44M |\n| cus-sandbox-milvus-mixcoord-7b8d86c96b-9ds87 | 0 | - | 0.0116 | - | 0% | 109.42M | - |\n| cus-sandbox-milvus-mixcoord-7b8d86c96b-zs5lk | 0 | - | 0.00611 | 1 | 0% | 85.87M | 1.07G |\n| cus-sandbox-milvus-proxy-75f5496c4f-7mspk | 0 | - | 0.00546 | 2.2 | 1% | 88.48M | 1.34G |\n| cus-sandbox-milvus-proxy-75f5496c4f-z5865 | 0 | - | 0.0066 | - | 0% | 120.95M | - |\n| cus-sandbox-milvus-querynode-0-794bfcccc6-6955l | 0 | - | 0.00667 | - | 0% | 115.54M | - |\n| cus-sandbox-milvus-querynode-0-794bfcccc6-qm99t | 0 | - | 0.00598 | 4 | 0% | 90.67M | 8.59G |\n| cus-sandbox-milvus-streamingnode-58fd878954-cv9m4 | 0 | - | 0.0133 | 2 | 0% | 142.03M | 4.29G |\n| cus-sandbox-milvus-streamingnode-58fd878954-qbnl2 | 0 | - | 0.0306 | - | 0% | 155.01M | - |",
+   "error": false
+  },
+  {
+   "server": "metrics",
+   "tool": "query",
+   "arguments": {
+    "promql": "kube_pod_status_ready{namespace=\"sandbox\",pod=~\"cus-sandbox-etcd-.*\",condition=\"true\"}",
+    "at": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "`kube_pod_status_ready{namespace=\"sandbox\",pod=~\"cus-sandbox-etcd-.*\",condition=\"true\"}` @ 2026-10-20 00:13:47Z — 3 seri\n\n| etiketler | değer |\n|---|---|\n| __name__=kube_pod_status_ready, condition=true, container=kube-state-metrics, endpoint=http, instance=10.0.0.44:8080, job=kube-state-metrics, namespace=sandbox, pod=cus-sandbox-etcd-1, service=monitoring-kube-state-metrics, uid=be966b78-de00-4645-8e87-5cc713a841dc | 1 |\n| __name__=kube_pod_status_ready, condition=true, container=kube-state-metrics, endpoint=http, instance=10.0.0.44:8080, job=kube-state-metrics, namespace=sandbox, pod=cus-sandbox-etcd-0, service=monitoring-kube-state-metrics, uid=4be73257-d06e-4efe-9afb-f50868ddc8bf | 0 |\n| __name__=kube_pod_status_ready, condition=true, container=kube-state-metrics, endpoint=http, instance=10.0.0.44:8080, job=kube-state-metrics, namespace=sandbox, pod=cus-sandbox-etcd-2, service=monitoring-kube-state-metrics, uid=704af02c-e789-4440-ae6a-6a4417a5fd86 | 0 |",
+   "error": false
+  },
+  {
+   "server": "metrics",
+   "tool": "query",
+   "arguments": {
+    "promql": "milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\",status=\"fail\"}",
+    "at": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "`milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\",status=\"fail\"}` @ 2026-10-20 00:13:47Z: sonuç yok.\nSebep: veri var ama sorgu eşleşmedi (metrik adı, etiket ya da değer bu anda yok). Metrik ve etiketleri metrics.discover ile kontrol et.",
+   "error": false
+  },
+  {
+   "server": "k8s",
+   "tool": "list_objects",
+   "arguments": {
+    "kind": "Pod",
+    "namespace": "sandbox",
+    "label_selector": "app=etcd"
+   },
+   "text": "Pod (sandbox): nesne yok.\nSebep: 'sandbox' namespace'inde şu anda Pod yok. Kubernetes yalnız bugünü bilir; olay anı için k8s.placement ya da metrikler.",
+   "error": false
+  },
+  {
+   "server": "k8s",
+   "tool": "events",
+   "arguments": {
+    "namespace": "sandbox",
+    "involved_name": "cus-sandbox-etcd-1",
+    "end": "2026-10-20T00:13:47.206000Z",
+    "minutes": 60
+   },
+   "text": "sandbox: 2026-10-19 23:13:47Z → 2026-10-20 00:13:47Z arasında olay yok (olaylar ~1 saat tutulur)",
+   "error": false
+  },
+  {
+   "server": "k8s",
+   "tool": "placement",
+   "arguments": {
+    "namespace": "sandbox",
+    "at": "2026-10-20T00:13:47.206000Z",
+    "pod_regex": "cus-sandbox-etcd-1",
+    "lookback_minutes": 15
+   },
+   "text": "sandbox yerleşimi @ 2026-10-20 00:13:47Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\nÖne çıkan yok (eşik aşan satır yok).\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-b-ezaa | Ready | aynı node | 1 | cus-sandbox-etcd-1 |",
+   "error": false
+  },
+  {
+   "server": "product",
+   "tool": "run_check",
+   "arguments": {
+    "name": "milvus_coordinators",
+    "namespace": "sandbox",
+    "end": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "milvus_coordinators [anomaly] 2026-10-19 23:43:47Z → 2026-10-20 00:13:47Z: sandbox: 2 querynode heartbeat'i 60 sn'den eski\nkategoriler: database\nsorgu: `max(milvus_querycoord_querynode_num{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"})\nmax(milvus_datacoord_datanode_num{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"})\ntime() - max by (node_id) (milvus_querycoord_last_heartbeat_timestamp{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\"}) / 1e9`\nveri: {\"querynodes\": 2.0, \"datanodes\": 1.0, \"stale_heartbeats\": [{\"node_id\": \"2\", \"seconds\": 152}, {\"node_id\": \"4\", \"seconds\": 152}]}",
+   "error": false
+  },
+  {
+   "server": "product",
+   "tool": "run_check",
+   "arguments": {
+    "name": "milvus_etcd",
+    "namespace": "sandbox",
+    "end": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "milvus_etcd [anomaly] 2026-10-19 23:43:47Z → 2026-10-20 00:13:47Z: sandbox etcd: hazır olmayan: cus-sandbox-etcd-0, cus-sandbox-etcd-2\nkategoriler: database\nsorgu: `kube_pod_status_ready{namespace=\"sandbox\",pod=~\".*etcd.*\",condition=\"true\"} == 0\nsum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"sandbox\",pod=~\".*etcd.*\"}[1800s])) > 0\nsum(increase(milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"sandbox\",status=\"fail\"}[1800s]))\ncount(kube_pod_info{namespace=\"sandbox\",pod=~\".*etcd.*\"})`\nveri: {\"not_ready\": [\"cus-sandbox-etcd-0\", \"cus-sandbox-etcd-2\"], \"restarts\": {}, \"meta_op_failures\": 0.0}",
+   "error": false
+  },
+  {
+   "server": "metrics",
+   "tool": "discover",
+   "arguments": {
+    "name_regex": "milvus_meta_op_count_total",
+    "label": "k8s_namespace_name"
+   },
+   "text": "| metrik | k8s_namespace_name | seri |\n|---|---|---|\n| milvus_meta_op_count_total | sandbox | 14 |",
+   "error": false
+  },
+  {
+   "server": "k8s",
+   "tool": "previous_logs",
+   "arguments": {
+    "namespace": "sandbox",
+    "pod": "cus-sandbox-etcd-1",
+    "container": "etcd",
+    "tail": 100
+   },
+   "text": "Error executing tool previous_logs",
+   "error": true
+  },
+  {
+   "server": "metrics",
+   "tool": "query",
+   "arguments": {
+    "promql": "milvus_meta_op_count_total{k8s_namespace_name=\"sandbox\",status=\"fail\"}",
+    "at": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "`milvus_meta_op_count_total{k8s_namespace_name=\"sandbox\",status=\"fail\"}` @ 2026-10-20 00:13:47Z: sonuç yok.\nSebep: veri var ama sorgu eşleşmedi (metrik adı, etiket ya da değer bu anda yok). Metrik ve etiketleri metrics.discover ile kontrol et.",
+   "error": false
+  },
+  {
+   "server": "k8s",
+   "tool": "recent_changes",
+   "arguments": {
+    "namespace": "sandbox",
+    "minutes": 120,
+    "end": "2026-10-20T00:13:47.206000Z"
+   },
+   "text": "sandbox 2026-10-19 22:13:47Z → 2026-10-20 00:13:47Z (kaynaklar: helm, manual, rollout): değişiklik yok",
+   "error": false
+  }
+ ]
+}

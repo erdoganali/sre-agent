@@ -1,0 +1,12 @@
+# Yalnızca deney uygulaması (sre-lab) için. Süreler kısa tutulur ki senaryolar dakikalar içinde
+# sonuç versin (Kubernetes'in genel kuralları 15 dk–1 sa bekler). team etiketi Alertmanager'da
+# sre-agent'a yönlendirilir (deploy/values/<ortam>/kube-prometheus-stack.yaml).
+namespace: sre-lab
+podRegex: "sre-lab-app-.*"
+labels:
+  team: sre-lab
+for:
+  crashLoop: 2m
+  waiting: 2m
+  notReady: 3m
+  unschedulable: 5m   # pending_pods kontrolü 5 dk üstünü takılma sayar

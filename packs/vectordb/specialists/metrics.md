@@ -1,0 +1,4 @@
+- Tenant etcd'sinin kendi metrikleri (`etcd_server_has_leader`, `etcd_mvcc_db_total_size_in_bytes` ...) toplanmaz; yoklukları kanıt değildir, alarmın yanlış olduğunu da göstermez.
+- `job="apiserver"`, `namespace="default"` etiketli `etcd_*` metrikleri (`etcd_requests_total`, `etcd_request_duration_seconds`) Kubernetes'in kendi etcd'sidir, tenant etcd'siyle ilgisi yoktur.
+- Tenant etcd sağlığı: `kube_pod_status_ready{namespace="<ns>",pod=~"cus-<tenant>-etcd-.*",condition="true"}` (üç üyeden en az ikisi hazır olmalı) ve Milvus'un meta işlem hataları `milvus_meta_op_count_total{job="milvus-metrics",k8s_namespace_name="<ns>",status="fail"}`.
+- Milvus metriklerinde namespace etiketi `k8s_namespace_name`'dir (telemetri hattı, `job="milvus-metrics"`); kube-state-metrics ve cAdvisor metriklerinde `namespace`.

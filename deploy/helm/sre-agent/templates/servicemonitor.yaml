@@ -1,0 +1,18 @@
+{{- if .Values.serviceMonitor.enabled }}
+# Rapor servisinin kendi metrikleri (/metrics); ingress'e açık değil.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sre-agent
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}

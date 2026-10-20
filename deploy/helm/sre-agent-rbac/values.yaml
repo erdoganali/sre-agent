@@ -1,0 +1,39 @@
+serviceAccountName: sre-agent-readonly
+
+# Aynı okuma rolünü kullanan MCP sunucularının kimlikleri (ADR-030). metrics/logs/traces
+# sunucuları Kubernetes'e erişmez; onların ServiceAccount'u sre-agent chart'ında, rolsüz.
+mcpServiceAccounts: [sre-agent-mcp-k8s, sre-agent-mcp-product]
+
+# Okuma yetkisinin kapsamı (ADR-025):
+#   cluster     tüm namespace'ler (ClusterRole + ClusterRoleBinding); GKE varsayılanı
+#   namespaces  yalnızca `namespaces` listesindekiler (her birinde Role + RoleBinding). Küme
+#               kapsamlı kaynaklar (nodes, namespaces, persistentvolumes, storageclasses) bu kipte
+#               okunamaz; node kontrolleri "veri yok" döner.
+scope: cluster
+namespaces: []
+
+# Yalnızca get/list/watch. Kaynaklar tek tek yazılır: "*" secrets'ı da kapsar, kullanılmaz.
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, events, nodes, namespaces, configmaps, persistentvolumeclaims,
+                persistentvolumes, services, endpoints]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets, controllerrevisions]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+
+# Domain paketlerinin ve ortamın ek okuma kuralları. Aynı kısıtlar geçerli.
+# Argo CD için:
+#   - apiGroups: [argoproj.io]
+#     resources: [applications]
+extraRules: []

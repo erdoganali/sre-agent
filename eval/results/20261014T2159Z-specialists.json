@@ -1,0 +1,1439 @@
+{
+ "860694f0be1e": {
+  "thread": "860694f0be1e:20261014T215908",
+  "report": {
+   "summary": "İki node'un NotReady duruma geçmesi nedeniyle etcd çoğunluğu kaybedildi ve bu durum Milvus pod'larının restartlarına yol açtı. Planlı altyapı değişikliği veya yeni sürüm dağıtımı olmadığı doğrulandı. Node kaybı ve pod restartları zaman çizelgesi ve loglarla desteklenmektedir.",
+   "category": "hardware_problem",
+   "root_cause": "Node kaybı ve NotReady durumu nedeniyle etcd çoğunluğu kaybedildi, bu da Milvus pod'larının restartlarına yol açtı.",
+   "details": "Loadtest ve Acme namespace'lerinde Milvus pod'larında restartlar gözlemlendi. Olay anında bazı node'lar NotReady durumuna geçti ve daha sonra yeniden oluşturuldu. Bu node'larda çalışan üç etcd pod'unun tamamı hazır değildi ve iki tanesi yeniden başlatıldı. Etcd çoğunluğu kaybedildiği için tüm bağlı bileşenler etkilendi. Planlı değişiklik veya yeni sürüm dağıtımı olmadığı k8s olayları ve recent_changes verileriyle doğrulandı. Pod'larda 'context deadline exceeded' hatası ve probe timeoutları yüksek olarak raporlandı.",
+   "evidence_chain": [
+    "k8s: Loadtest ve Acme namespace'lerinde Milvus pod restartları ve node NotReady olayları",
+    "product: İki node'un NotReady olması ve etcd pod'larının hazır olmaması",
+    "metrics: Golden signals baseline metriklerinde restart artışı ve pvc kullanımının normal olması"
+   ],
+   "rejected": [
+    {
+     "category": "planned_infrastructure_change",
+     "reason": "Events ve recent_changes verilerinde planlı değişiklik veya yeni sürüm yok."
+    },
+    {
+     "category": "application_release",
+     "reason": "Değişiklik yok, yeni sürüm dağıtımı yok."
+    }
+   ],
+   "recommendations": [
+    "Etcd podlarının restart ve hazır olma durumları ile ilgili daha detaylı metrikler incelenmeli.",
+    "Node NotReady ve pod restart olaylarının tam zaman çizelgesi ve log detayları doğrulanmalı."
+   ],
+   "certain": true,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "hardware_problem",
+   "root_cause": "Node kaybı ve NotReady durumu nedeniyle etcd çoğunluğu kaybedildi, bu da Milvus pod'larının restartlarına yol açtı.",
+   "supporting": [
+    "k8s",
+    "product"
+   ],
+   "rejected": [
+    {
+     "category": "planned_infrastructure_change",
+     "reason": "Events ve recent_changes verilerinde planlı değişiklik veya yeni sürüm yok."
+    },
+    {
+     "category": "application_release",
+     "reason": "Değişiklik yok, yeni sürüm dağıtımı yok."
+    }
+   ],
+   "contributing": [],
+   "timeline": [
+    "2026-10-09T14:34:18.752000Z"
+   ],
+   "method": "model"
+  },
+  "evaluation": {
+   "confidence": "high",
+   "cross_validated": true,
+   "suggested_deep_dives": [
+    {
+     "specialist": "metrics",
+     "question": "Etcd podlarının restart ve hazır olma durumları ile ilgili daha detaylı metrikler var mı?"
+    },
+    {
+     "specialist": "k8s",
+     "question": "Node NotReady ve pod restart olaylarının tam zaman çizelgesi ve log detayları nedir?"
+    }
+   ],
+   "note": ""
+  },
+  "specialists": [
+   "metrics",
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "metrics": {
+    "specialist": "metrics",
+    "summary": "2 kontrol anomali gördü: golden_signals_baseline, pvc_usage",
+    "observations": [
+     "golden_signals_baseline: loadtest: 1w öncesinin 2 katı: restarts 15.5332 (baseline 0)",
+     "pvc_usage: loadtest: data-cus-loadtest-etcd-0 %2 (24 sa içinde dolacak), data-cus-loadtest-etcd-1 %2 (24 sa içinde dolacak), data-cus-loadtest-etcd-2 %2 (24 sa içinde dolacak)",
+     "golden_signals_baseline: acme: 1w öncesinin 2 katı: memory_bytes 1.83118e+09 (baseline 8.98063e+08); restarts 15.9847 (baseline 0)",
+     "pvc_usage: acme: data-cus-acme-etcd-0 %4 (24 sa içinde dolacak), data-cus-acme-etcd-1 %4 (24 sa içinde dolacak)",
+     "golden_signals_baseline: acme: 1w öncesinin 2 katı: memory_bytes 1.83687e+09 (baseline 8.9807e+08); restarts 16.0503 (baseline 0)",
+     "golden_signals_baseline: loadtest: 1w öncesinin 2 katı: restarts 15.5891 (baseline 0)",
+     "golden_signals_baseline: acme: 1w öncesinin 2 katı: memory_bytes 1.83687e+09 (baseline 8.98069e+08); restarts 16.1032 (baseline 0)",
+     "golden_signals_baseline: loadtest: 1w öncesinin 2 katı: restarts 15.6287 (baseline 0)"
+    ],
+    "evidence": [
+     {
+      "source": "golden_signals_baseline",
+      "summary": "loadtest: 1w öncesinin 2 katı: restarts 15.5332 (baseline 0)"
+     },
+     {
+      "source": "pvc_usage",
+      "summary": "loadtest: data-cus-loadtest-etcd-0 %2 (24 sa içinde dolacak), data-cus-loadtest-etcd-1 %2 (24 sa içinde dolacak), data-cus-loadtest-etcd-2 %2 (24 sa içinde dolacak)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "acme: 1w öncesinin 2 katı: memory_bytes 1.83118e+09 (baseline 8.98063e+08); restarts 15.9847 (baseline 0)"
+     },
+     {
+      "source": "pvc_usage",
+      "summary": "acme: data-cus-acme-etcd-0 %4 (24 sa içinde dolacak), data-cus-acme-etcd-1 %4 (24 sa içinde dolacak)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "acme: 1w öncesinin 2 katı: memory_bytes 1.83687e+09 (baseline 8.9807e+08); restarts 16.0503 (baseline 0)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "loadtest: 1w öncesinin 2 katı: restarts 15.5891 (baseline 0)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "acme: 1w öncesinin 2 katı: memory_bytes 1.83687e+09 (baseline 8.98069e+08); restarts 16.1032 (baseline 0)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "loadtest: 1w öncesinin 2 katı: restarts 15.6287 (baseline 0)"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   },
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "Loadtest ve Acme namespace'lerinde Milvus pod'larında restartlar gözlemlendi. Olay anında bazı node'lar NotReady durumuna geçti ve daha sonra yeniden oluşturuldu, bu da node kaybı ve yeniden oluşturulmasıyla ilişkili pod restartlarına işaret ediyor.",
+    "observations": [
+     "Loadtest ve Acme namespace'lerinde Milvus pod'larında restartlar var.",
+     "Olay anında bazı node'lar NotReady durumuna geçti (gke-cluster-pool-a-l05r ve gke-cluster-pool-a-ugj2).",
+     "Bu node'lar olaydan sonra yeniden oluşturuldu.",
+     "Pod'lar bu node'larda çalışıyor ve restartlar bu zaman diliminde gerçekleşti.",
+     "Node olaylarında NodeNotReady ve Shutdown olayları var.",
+     "Pod'larda crash loglarında 'context deadline exceeded' hatası var, probe timeoutları yüksek.",
+     "Events ve recent_changes verilerinde planlı değişiklik veya yeni sürüm yok."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.placement({\"namespace\": \"loadtest\", \"at\": \"2026-10-09T14:34:18.752000Z\", \"lookback_minutes\": 15})",
+      "summary": "loadtest yerleşimi @ 2026-10-09 14:34:18Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| (node'a atanmamış) | - | - | 2 | cus-loadtest-milvus-proxy-6bc9d7dc94-s5mcq, cus-loadtest-milvus-streamingnode-8ffb98c77-vjb7b |\n| gke-cluster-pool-a-d65v | Ready | olayla ilgisiz, daha sonra yeniden oluşturuldu (2026-10-10 12:16:15Z) | 9 | cus-loadtest-etcd-0, cus-loadtest-etcd-1, cus-loadtest-etcd-2, cus-loadtest-milvus-datanode-6ff59d79d8-ht6vx, cus-loadtest-milvus-metrics-agent-76b89c9d8b-7v6j9, cus-loadtest-milvus-mixcoord-578f47f567-xrbsw, cus-loadtest-milvus-proxy-6bc9d7dc94-vwnsv, cus-loadtest-milvus-querynode-0-5b56546787-q8x5g, cus-loadtest-milvus-stre"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"acme\", \"at\": \"2026-10-09T14:34:18.752000Z\", \"lookback_minutes\": 15})",
+      "summary": "acme yerleşimi @ 2026-10-09 14:34:18Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| (node'a atanmamış) | - | - | 1 | cus-acme-milvus-proxy-6c99755b44-d8xzd |\n| gke-cluster-pool-a-d65v | Ready | olayla ilgisiz, daha sonra yeniden oluşturuldu (2026-10-10 12:16:15Z) | 10 | cus-acme-etcd-0, cus-acme-etcd-1, cus-acme-etcd-2, cus-acme-milvus-attu-6fd4d76c55-ps49c, cus-acme-milvus-datanode-5868b75464-j2x6g, cus-acme-milvus-metrics-agent-67c8f6dddd-57plp, cus-acme-milvus-mixcoord-6bbbf99d59-b4fzh, cus-acme-milvus-proxy-6c99755b44-h9zrs, cus-acme-milvus-querynode-0-6947bcb477-4lm94, cus-acme-milvus-streamingnode-7bd9d76f9c-q7hxd |\n| gke-example"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"loadtest\", \"end\": \"2026-10-09T14:34:18.752000Z\", \"minutes\": 60})",
+      "summary": "loadtest: 2026-10-09 13:34:18Z → 2026-10-09 14:34:18Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"acme\", \"end\": \"2026-10-09T14:34:18.752000Z\", \"minutes\": 60})",
+      "summary": "acme: 2026-10-09 13:34:18Z → 2026-10-09 14:34:18Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"loadtest\", \"end\": \"2026-10-09T14:34:18.752000Z\", \"minutes\": 120})",
+      "summary": "loadtest 2026-10-09 12:34:18Z → 2026-10-09 14:34:18Z (kaynaklar: helm, manual, rollout): değişiklik yok"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"acme\", \"end\": \"2026-10-09T14:34:18.752000Z\", \"minutes\": 120})",
+      "summary": "acme 2026-10-09 12:34:18Z → 2026-10-09 14:34:18Z (kaynaklar: helm, manual, rollout): değişiklik yok"
+     }
+    ],
+    "suspects": [
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.placement",
+     "k8s.placement",
+     "k8s.previous_logs",
+     "k8s.previous_logs",
+     "k8s.events",
+     "k8s.events",
+     "k8s.recent_changes",
+     "k8s.recent_changes"
+    ],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "İki node'un aynı anda NotReady olması nedeniyle etcd çoğunluğu kaybedilmiş ve bağlı tüm Milvus bileşenleri etkilenmiştir. Bu durum VectorDBPodRestarting alarmlarına yol açmıştır.",
+    "observations": [
+     "Olay anında acme namespace'inde iki node NotReady oldu.",
+     "Bu node'larda çalışan üç etcd pod'unun tamamı hazır değildi ve iki tanesi yeniden başlatıldı.",
+     "Etcd çoğunluğu kaybedildiği için tüm bağlı bileşenler etkilendi.",
+     "Milvus sağlık kontrolü veri vermedi, ancak milvus_etcd kontrolü anomali gösterdi.",
+     "Diğer kontroller normaldi."
+    ],
+    "evidence": [
+     {
+      "source": "product.topology({\"namespace\": \"acme\", \"at\": \"2026-10-09T14:34:18.752000Z\"})",
+      "summary": "acme yerleşimi @ 2026-10-09 14:34:18Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n## vectordb\n\n| bileşen | pod | node | kaybedilen node'da | bağlı olduğu |\n|---|---|---|---|---|\n| etcd | 6 | gke-cluster-pool-a-d65v, gke-cluster-pool-a-l05r, gke-cluster-pool-a-ugj2 | evet: gke-cluster-pool-a-l05r, gke-cluster-pool-a-ugj2 | - |\n| mixcoord | 2 | gke-cluster-pool-a-d65v, gke-cluster-pool-a-ugj2 | evet: gke-cluster-pool-a-ugj2 | etcd |\n| proxy | 3 | (node'a atanmamış), gke-cluster-pool-a-d65v, gke-example-vector"
+     },
+     {
+      "source": "product.run_check({\"namespace\": \"acme\", \"name\": \"milvus_etcd\", \"end\": \"2026-10-09T14:34:18.752000Z\"})",
+      "summary": "milvus_etcd [anomaly] 2026-10-09 14:04:18Z → 2026-10-09 14:34:18Z: acme etcd: hazır olmayan: cus-acme-etcd-0, cus-acme-etcd-1, cus-acme-etcd-2; yeniden başlayan: cus-acme-etcd-0, cus-acme-etcd-1\nkategoriler: database\nsorgu: `kube_pod_status_ready{namespace=\"acme\",pod=~\".*etcd.*\",condition=\"true\"} == 0\nsum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"acme\",pod=~\".*etcd.*\"}[1800s])) > 0\nsum(increase(milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"acme\",status=\"fail\"}[1800s]))\ncount(kube_pod_info{namespace=\"acme\",pod=~\".*etcd.*\"})`\nveri: {\"not_ready\": [\"cus-acme-etcd-0\", \"cus-acme-etcd-1\", \"cus-acme-etcd-2\"], \"restarts\": {\"cus-acme-etcd-0\": 1.0150496655629875, \"cus-acme-etcd-1\": 1.0150496655629875}, \"meta_op_failures\": 0.0}"
+     }
+    ],
+    "suspects": [
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "product.topology",
+     "product.topology",
+     "product.run_check",
+     "product.run_check",
+     "product.run_check",
+     "product.run_check"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 59819,
+   "by_scope": {
+    "k8s": 15477,
+    "metrics": 12391,
+    "product": 16610
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 1
+  },
+  "label": "hardware_problem",
+  "seconds": 60.4
+ },
+ "2080c1230545": {
+  "thread": "2080c1230545:20261014T220008",
+  "report": {
+   "summary": "Acme namespace'inde pod bulunmaması nedeniyle pod restartları ve crash logları doğrulanamamıştır. Node'lar NotReady ve Shutdown durumundadır, bu durum podların olmamasına yol açmıştır. Olayın temel sebebi node'ların durumu ve pod yokluğudur.",
+   "category": "hardware_problem",
+   "root_cause": "Node'lar NotReady ve Shutdown durumunda, acme namespace'de pod yokluğu nedeniyle pod restartları ve crash logları doğrulanamamış, podların olmaması olayın temel sebebidir.",
+   "details": "Olay anında acme namespace'de pod bulunmamaktadır ve node'lar NotReady ve Shutdown durumundadır. Bu nedenle pod restartları ve crash logları doğrulanamamıştır. Son 1 saatte acme namespace'de olay kaydı yoktur ve son 2 saatte kaynak değişikliği olmamıştır. Ürün bileşeni bulunmadığı için uygulama katmanında hata veya restart gözlenmemiştir.",
+   "evidence_chain": [
+    "k8s: Olay anında acme namespace'de pod yok, node'lar NotReady ve Shutdown durumunda.",
+    "product: Olay anında acme namespace'inde ürün bileşeni bulunmamaktadır."
+   ],
+   "rejected": [
+    {
+     "category": "application_service_bug",
+     "reason": "Olay anında acme namespace'inde ürün bileşeni bulunmamaktadır, dolayısıyla ürün katmanında pod yeniden başlatma veya crash loop durumu gözlenmemiştir."
+    }
+   ],
+   "recommendations": [],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "hardware_problem",
+   "root_cause": "Node'lar NotReady ve Shutdown durumunda, acme namespace'de pod yokluğu nedeniyle pod restartları ve crash logları doğrulanamamış, podların olmaması olayın temel sebebidir.",
+   "supporting": [
+    "k8s"
+   ],
+   "rejected": [
+    {
+     "category": "application_service_bug",
+     "reason": "Olay anında acme namespace'inde ürün bileşeni bulunmamaktadır, dolayısıyla ürün katmanında pod yeniden başlatma veya crash loop durumu gözlenmemiştir."
+    }
+   ],
+   "contributing": [],
+   "timeline": [],
+   "method": "model"
+  },
+  "evaluation": {
+   "confidence": "high",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": ""
+  },
+  "specialists": [
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "Olay anında acme namespace'de pod bulunmamaktadır ve node'lar NotReady ve Shutdown durumundadır. Bu nedenle pod restartları ve crash logları doğrulanamamış, podların olmaması olayın temel sebebidir.",
+    "observations": [
+     "Olay anında acme namespace'de pod yok (çağrı 4).",
+     "Son 1 saatte acme namespace'de olay kaydı yok (çağrı 1).",
+     "Son 2 saatte acme namespace'de kaynak değişikliği yok (çağrı 2).",
+     "Node'lar NotReady ve Shutdown durumunda (brief, crash_log_exception, pod_restarts, node_conditions, node_events)."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.events({\"namespace\": \"acme\", \"minutes\": 60, \"end\": \"2026-10-01T08:59:18.752000Z\"})",
+      "summary": "acme: 2026-10-01 07:59:18Z → 2026-10-01 08:59:18Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"acme\", \"minutes\": 120, \"end\": \"2026-10-01T08:59:18.752000Z\"})",
+      "summary": "acme 2026-10-01 06:59:18Z → 2026-10-01 08:59:18Z (kaynaklar: helm, manual, rollout): değişiklik yok"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"acme\"})",
+      "summary": "Pod (acme): nesne yok"
+     }
+    ],
+    "suspects": [
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.placement",
+     "k8s.events",
+     "k8s.recent_changes",
+     "k8s.list_objects",
+     "k8s.list_objects"
+    ],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "Olay anında acme namespace'inde ürün bileşeni bulunmamaktadır, dolayısıyla ürün katmanında pod yeniden başlatma veya crash loop durumu gözlenmemiştir. Anomali gören kontroller ürün alanıyla ilgisizdir, kök neden ürün katmanında değildir.",
+    "observations": [
+     "Olay anında acme namespace'inde ürün bileşeni yok.",
+     "Pod yeniden başlatma veya crash loop gözlenmedi.",
+     "Anomali gören kontroller ürün alanıyla ilgili değil."
+    ],
+    "evidence": [
+     {
+      "source": "product.topology({\"namespace\": \"acme\", \"at\": \"2026-10-01T08:59:18.752000Z\"})",
+      "summary": "acme yerleşimi @ 2026-10-01 08:59:18Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\nBu namespace'te paket bileşeni bulunamadı."
+     }
+    ],
+    "suspects": [],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "product.topology"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 22715,
+   "by_scope": {
+    "product": 4378,
+    "k8s": 10805
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "hardware_problem",
+  "seconds": 73.5
+ },
+ "3c8da6c1ff2d": {
+  "thread": "3c8da6c1ff2d:20261014T220122",
+  "report": {
+   "summary": "LabContainerWaiting alarmı, sre-lab namespace'indeki sre-lab-app Deployment'ında yapılan rollout sonrası pod'un yeni imajının başlatılması sırasında yaşanan geçici bekleme nedeniyle oluşmuştur. Pod olay anında restart olmamış ve node ile ilgili sorunlar pod'un node'u ile ilişkilendirilmemiştir. Bu durum, uygulama sürüm değişikliğinin kendisinden kaynaklanan geçici bir bekleme olduğunu göstermektedir.",
+   "category": "application_release",
+   "root_cause": "LabContainerWaiting alarmı, sre-lab-app Deployment'ında rollout sonrası pod'un yeni imajının başlatılması sırasında yaşanan geçici bekleme nedeniyle oluşmuştur.",
+   "details": "Olay anında sre-lab namespace'inde sre-lab-app pod'u var ve restart olmamış. Pod'un yerleşim bilgisi olay anında bulunamamış. Son 2 saat içinde Deployment/sre-lab-app için rollout yapılmış ve pod imajı değiştirilmiş. Node'larda Ready=Unknown durumu ve NodeNotReady, Shutdown olayları var ancak pod'un node'u ile eşleşmiyor. Kubernetes olaylarında pod için olay kaydı yok. Bu bulgular, sorunun uygulama sürüm değişikliği sonrası pod başlatma sürecindeki geçici beklemeden kaynaklandığını desteklemektedir.",
+   "evidence_chain": [
+    "k8s: sre-lab namespace'inde sre-lab-app pod'u var ve restart olmamış",
+    "k8s: Son 2 saat içinde Deployment/sre-lab-app için rollout yapılmış ve pod imajı değiştirilmiş",
+    "k8s: Node'larda Ready=Unknown durumu ve NodeNotReady, Shutdown olayları var ancak pod'un node'u ile eşleşmiyor",
+    "k8s: Pod için olay kaydı yok"
+   ],
+   "rejected": [],
+   "recommendations": [
+    "Rollout sonrası pod başlatma sürecindeki bekleme süreleri ve pod yerleşim bilgileri doğrulanmalı",
+    "Node durumları ile pod yerleşim ilişkisi incelenmeli"
+   ],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "application_release",
+   "root_cause": "LabContainerWaiting alarmı, sre-lab-app Deployment'ında rollout sonrası pod'un yeni imajının başlatılması sırasında yaşanan geçici bekleme nedeniyle oluşmuştur.",
+   "supporting": [
+    "k8s"
+   ],
+   "rejected": [],
+   "contributing": [],
+   "timeline": [],
+   "method": "passthrough"
+  },
+  "evaluation": {
+   "confidence": "low",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": "deterministik değerlendirme (model yok ya da hata)"
+  },
+  "specialists": [
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "LabContainerWaiting alarmı, sre-lab-app Deployment'ında rollout sonrası pod'un yeni imajının başlatılması sırasında yaşanan geçici bekleme nedeniyle oluşmuştur.",
+    "observations": [
+     "Olay anında sre-lab namespace'inde sre-lab-app pod'u var ve restart olmamış.",
+     "Pod'un yerleşim bilgisi olay anında bulunamamış.",
+     "Olay anından önceki 1 saat içinde pod için Kubernetes olayı yok.",
+     "Son 2 saat içinde Deployment/sre-lab-app için rollout yapılmış ve pod imajı değiştirilmiş.",
+     "Node'larda Ready=Unknown durumu ve NodeNotReady, Shutdown olayları var ancak pod'un node'u ile eşleşmiyor."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\", \"label_selector\": \"app=sre-lab-app\"})",
+      "summary": "Pod (sre-lab): nesne yok"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T19:50:25Z\", \"pod_regex\": \"sre-lab-app\", \"lookback_minutes\": 15})",
+      "summary": "sre-lab @ 2026-10-08 19:50:25Z: pod bilgisi yok (kube_pod_info)"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"minutes\": 60})",
+      "summary": "sre-lab: 2026-10-14 21:01:30Z → 2026-10-14 22:01:30Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\"})",
+      "summary": "Pod (sre-lab): 1 nesne\n\n| pod | faz | hazır | restart | node | yaş | durum |\n|---|---|---|---|---|---|---|\n| sre-lab-app-69c457dfc-nbtv6 | Running | 1/1 | 0 | gke-cluster-pool-a-d65v | 4g | - |"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T19:50:25Z\", \"pod_regex\": \"sre-lab-app-69c457dfc-nbtv6\", \"lookback_minutes\": 15})",
+      "summary": "sre-lab @ 2026-10-08 19:50:25Z: pod bilgisi yok (kube_pod_info)"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"involved_name\": \"sre-lab-app-69c457dfc-nbtv6\", \"minutes\": 60, \"end\": \"2026-10-08T19:50:25Z\"})",
+      "summary": "sre-lab: 2026-10-08 18:50:25Z → 2026-10-08 19:50:25Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"sre-lab\", \"minutes\": 120, \"end\": \"2026-10-08T19:50:25Z\"})",
+      "summary": "sre-lab 2026-10-08 17:50:25Z → 2026-10-08 19:50:25Z (kaynaklar: helm, manual, rollout): 1 değişiklik\n\n| zaman | kaynak | nesne | yapan | ayrıntı |\n|---|---|---|---|---|\n| 2026-10-08 19:44:04Z | rollout | Deployment/sre-lab-app | - | revision=24, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library/python:3.14.99-yok-slim'}, image_changed=True |"
+     }
+    ],
+    "suspects": [
+     "application_release"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.list_objects",
+     "k8s.placement",
+     "k8s.events",
+     "k8s.list_objects",
+     "k8s.placement",
+     "k8s.events",
+     "k8s.recent_changes"
+    ],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "bu yetenekte anomali yok",
+    "observations": [],
+    "evidence": [],
+    "suspects": [],
+    "confidence": "low",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 19802,
+   "by_scope": {
+    "product": 2058,
+    "k8s": 13944
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "application_release",
+  "seconds": 41.6
+ },
+ "97971fb5df85": {
+  "thread": "97971fb5df85:20261014T220203",
+  "report": {
+   "summary": "Olay, sre-lab namespace'inde podların OOMKilled olması ve restartlarının artması nedeniyle bellek yetersizliğinden kaynaklanmaktadır. Node kaybı veya planlı altyapı değişikliği yoktur, ayrıca yeni sürüm başarılı şekilde dağıtılmıştır. Bu nedenle kök neden kapasite ve performans sorunudur.",
+   "category": "capacity_performance",
+   "root_cause": "Pod'ların OOMKilled olması ve restartlarının artması bellek yetersizliği nedeniyle kaynak sınırlarının aşılmasıdır.",
+   "details": "Olay süresince sre-lab namespace'inde pod restartları artmış ve özellikle 'sre-lab-app-7b4885d497-554ld' pod'u OOMKilled nedeniyle 3 kez yeniden başlatılmıştır. Bellek kullanımı podlarda sınırda veya üzerinde olup, CPU kullanımı düşüktür. Node'lar genellikle Ready durumundadır ve kayıp node yoktur. Helm tabanlı yeni sürüm başarılı şekilde dağıtılmıştır, dolayısıyla uygulama sürümü veya dağıtım hattı kaynaklı sorun yoktur. Olay anında 'nx71' node'u NotReady olmuş ve bu node üzerindeki podlar yeniden oluşturulmuştur, ancak bu durum podların OOMKilled olmasının ana nedeni değildir. Podların bellek limitleri ve kullanım detayları incelenmelidir.",
+   "evidence_chain": [
+    "metrics: sre-lab namespace'inde pod restartları artmış, OOMKilled nedeniyle podlar yeniden başlatılmıştır.",
+    "k8s: Helm güncellemesi sonrası podlar OOMKilled olmuş, node 'nx71' NotReady olmuş ancak podlar diğer node'larda da OOMKilled olmuştur."
+   ],
+   "rejected": [
+    {
+     "category": "hardware_problem",
+     "reason": "Node kaybı yok, node'lar genellikle Ready durumda."
+    },
+    {
+     "category": "application_release",
+     "reason": "Yeni sürüm ayağa kalktı ancak podlar OOMKilled oldu, bu nedenle dağıtım hattı değişikliği kök neden değil."
+    }
+   ],
+   "recommendations": [],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 2
+  },
+  "correlation": {
+   "category": "capacity_performance",
+   "root_cause": "Pod'ların OOMKilled olması ve restartlarının artması bellek yetersizliği nedeniyle kaynak sınırlarının aşılmasıdır.",
+   "supporting": [
+    "metrics"
+   ],
+   "rejected": [
+    {
+     "category": "hardware_problem",
+     "reason": "Node kaybı yok, node'lar genellikle Ready durumda."
+    },
+    {
+     "category": "application_release",
+     "reason": "Yeni sürüm ayağa kalktı ancak podlar OOMKilled oldu, bu nedenle dağıtım hattı değişikliği kök neden değil."
+    }
+   ],
+   "contributing": [],
+   "timeline": [
+    "2026-10-08T19:54:25.229000Z - Olay başladı, pod restartları ve OOMKilled başladı.",
+    "2026-10-08T20:06:55.229000Z - Olay sonu, pod restartları ve OOMKilled devam ediyor."
+   ],
+   "method": "model"
+  },
+  "evaluation": {
+   "confidence": "high",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": ""
+  },
+  "specialists": [
+   "metrics",
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "metrics": {
+    "specialist": "metrics",
+    "summary": "Olay anında sre-lab namespace'inde pod restartları artmış ve özellikle 'sre-lab-app-7b4885d497-554ld' pod'u OOMKilled nedeniyle 3 kez yeniden başlatılmıştır. Bu durum bellek yetersizliğinin (OOM) kök neden olduğunu göstermektedir.",
+    "observations": [
+     "sre-lab namespace'inde pod restartları artmış (3 kez restart olan pod var).",
+     "OOMKilled nedeniyle podların son terminasyonları var.",
+     "Bellek kullanımı pod'larda sınırda veya üzerinde değil, CPU kullanımı düşük.",
+     "Golden signals baseline restart oranı 1 hafta öncesinin 2 katı.",
+     "OOMKilled uyarıları ve pod restartları aynı zaman aralığında gerçekleşmiş.",
+     "golden_signals_baseline: sre-lab: 1w öncesinin 2 katı: restarts 3.6155 (baseline 0)",
+     "golden_signals_baseline: sre-lab: 1w öncesinin 2 katı: restarts 6.5259 (baseline 0)",
+     "deep dive sorusu: Pod restartları ve OOMKilled olaylarının detaylı zaman serisi ve kaynak kullanımı verileri nelerdir? (kanıt toplayan specialist T3.4'te; şimdilik yalnız Faz 1 kanıtı)",
+     "sre-lab-app-6c9f667fb7-rkp4v pod'u 3.49 kez restart olmuş, OOMKilled değil.",
+     "sre-lab-app-7b4885d497-554ld pod'u 2.03 kez restart olmuş ve OOMKilled olmuş, bellek kullanımı 8.39M.",
+     "sre-lab-app-7b4885d497-5jzt6 pod'u OOMKilled olmuş, restart sayısı 0, bellek kullanımı 8.39M.",
+     "sre-lab-app-7fd649474d-clmtk pod'u restart olmamış, CPU kullanımı çok düşük, bellek kullanımı 14.47M, limit 67.11M.",
+     "OOMKilled olayları 20:05:40 ve 20:06:10'da gerçekleşmiş.",
+     "Restartlar 19:54:40, 20:05:40 ve 20:06:40'da yoğunlaşmış."
+    ],
+    "evidence": [
+     {
+      "source": "metrics.workload_signals({\"namespace\": \"sre-lab\", \"minutes\": 15, \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "sre-lab pod'ları, 2026-10-08 19:51:55Z → 2026-10-08 20:06:55Z (restart ve throttle pencere boyunca; cpu/bellek: son 5 dk / pencere tepesi)\n\n| pod | restart | neden | cpu | cpu_limit | throttle | bellek | bellek_limit |\n|---|---|---|---|---|---|---|---|\n| sre-lab-app-6c9f667fb7-rkp4v | 3.49 | - | - | - | - | - | - |\n| sre-lab-app-7b4885d497-554ld | 2.03 | OOMKilled | - | - | - | - | 8.39M |\n| sre-lab-app-7b4885d497-5jzt6 | 0 | OOMKilled | - | - | - | - | 8.39M |\n| sre-lab-app-7fd649474d-clmtk | 0 | - | 0.000166 | - | - | 14.47M | 67.11M |"
+     },
+     {
+      "source": "metrics.query({\"promql\": \"kube_pod_container_status_restarts_total{namespace=\\\"sre-lab\\\"}\", \"at\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "`kube_pod_container_status_restarts_total{namespace=\"sre-lab\"}` @ 2026-10-08 20:06:55Z — 3 seri\n\n| etiketler | değer |\n|---|---|\n| __name__=kube_pod_container_status_restarts_total, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-554ld, service=monitoring-kube-state-metrics, uid=49f94391-f7c4-4248-8e51-6b55760f45f3 | 3 |\n| __name__=kube_pod_container_status_restarts_total, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-5jzt6, service=monitoring-kube-state-metrics, uid=b592a144-ea5d-42d6-97e1-a20951cfe476 | 1 |\n| __name__=kube_pod_container_status_restarts_total, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-"
+     },
+     {
+      "source": "metrics.query({\"promql\": \"kube_pod_container_status_last_terminated_reason{namespace=\\\"sre-lab\\\"}\", \"at\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "`kube_pod_container_status_last_terminated_reason{namespace=\"sre-lab\"}` @ 2026-10-08 20:06:55Z — 2 seri\n\n| etiketler | değer |\n|---|---|\n| __name__=kube_pod_container_status_last_terminated_reason, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-554ld, reason=OOMKilled, service=monitoring-kube-state-metrics, uid=49f94391-f7c4-4248-8e51-6b55760f45f3 | 1 |\n| __name__=kube_pod_container_status_last_terminated_reason, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-5jzt6, reason=OOMKilled, service=monitoring-kube-state-metrics, uid=b592a144-ea5d-42d6-97e1-a20951cfe476 | 1 |"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "sre-lab: 1w öncesinin 2 katı: restarts 3.6155 (baseline 0)"
+     },
+     {
+      "source": "golden_signals_baseline",
+      "summary": "sre-lab: 1w öncesinin 2 katı: restarts 6.5259 (baseline 0)"
+     },
+     {
+      "source": "metrics.workload_signals({\"namespace\": \"sre-lab\", \"minutes\": 15, \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "sre-lab pod'ları, 2026-10-08 19:51:55Z → 2026-10-08 20:06:55Z (restart ve throttle pencere boyunca; cpu/bellek: son 5 dk / pencere tepesi)\n\n| pod | restart | neden | cpu | cpu_limit | throttle | bellek | bellek_limit |\n|---|---|---|---|---|---|---|---|\n| sre-lab-app-6c9f667fb7-rkp4v | 3.49 | - | - | - | - | - | - |\n| sre-lab-app-7b4885d497-554ld | 2.03 | OOMKilled | - | - | - | - | 8.39M |\n| sre-lab-app-7b4885d497-5jzt6 | 0 | OOMKilled | - | - | - | - | 8.39M |\n| sre-lab-app-7fd649474d-clmtk | 0 | - | 0.000166 | - | - | 14.47M | 67.11M |"
+     },
+     {
+      "source": "metrics.range_summary({\"promql\": \"kube_pod_container_status_restarts_total{namespace=\\\"sre-lab\\\"}\", \"minutes\": 15, \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "`kube_pod_container_status_restarts_total{namespace=\"sre-lab\"}` 2026-10-08 19:51:55Z → 2026-10-08 20:06:55Z — 4 seri\n\n| etiketler | min | ort | tepe | tepe anı | ilk | son |\n|---|---|---|---|---|---|---|\n| __name__=kube_pod_container_status_restarts_total, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-6c9f667fb7-rkp4v, service=monitoring-kube-state-metrics, uid=b9a99ad9-4d26-4f97-bd87-bcbe261e3d90 | 2 | 3.86 | 5 | 2026-10-08 19:54:40Z | 2 | 5 |\n| __name__=kube_pod_container_status_restarts_total, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-554ld, service=monitoring-kube-state-metrics, uid=49f94391-f7c4-4248-8e51-6b55760f45f3 | 2 | 2.5 | 3 "
+     },
+     {
+      "source": "metrics.range_summary({\"promql\": \"kube_pod_container_status_last_terminated_reason{namespace=\\\"sre-lab\\\",reason=\\\"OOMKilled\\\"}\", \"minutes\": 15, \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "`kube_pod_container_status_last_terminated_reason{namespace=\"sre-lab\",reason=\"OOMKilled\"}` 2026-10-08 19:51:55Z → 2026-10-08 20:06:55Z — 2 seri\n\n| etiketler | min | ort | tepe | tepe anı | ilk | son |\n|---|---|---|---|---|---|---|\n| __name__=kube_pod_container_status_last_terminated_reason, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-554ld, reason=OOMKilled, service=monitoring-kube-state-metrics, uid=49f94391-f7c4-4248-8e51-6b55760f45f3 | 1 | 1 | 1 | 2026-10-08 20:06:10Z | 1 | 1 |\n| __name__=kube_pod_container_status_last_terminated_reason, container=app, endpoint=http, instance=10.0.0.13:8080, job=kube-state-metrics, namespace=sre-lab, pod=sre-lab-app-7b4885d497-5jzt6, reason=OOMKilled, service=monitoring"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "metrics.workload_signals",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query"
+    ],
+    "deep_dive": false
+   },
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "Olay, sre-lab-app uygulamasının Helm tabanlı bir güncellemesi ve image değişikliği sonrası başladı. Pod'lardan biri NotReady olan bir node üzerinde çalışıyordu ve bu node olaydan sonra yeniden oluşturuldu, ayrıca pod OOMKilled hatası aldı ve uygulama içinde veritabanı ayarı eksikliği nedeniyle RuntimeError oluştu.",
+    "observations": [
+     "Helm güncellemesi ve image değişikliği (helm_release_changes, recent_rollouts)",
+     "Pod OOMKilled ve RuntimeError: veritabanı ayarı eksik (crash_log_exception, pod_restarts)",
+     "Node NotReady oldu ve yeniden oluşturuldu (node_conditions, node_events)",
+     "Pod'lar olay anında NotReady node üzerinde çalışıyordu (placement)",
+     "Podlar üç farklı node üzerinde yerleşmiş.",
+     "Olay anında 'nx71' node'u NotReady olmuş ve 8-20 dakika içinde yeniden oluşturulmuş.",
+     "Diğer node'lar Ready durumda ve podlar stabil.",
+     "Namespace içinde olay anı ve öncesinde önemli Kubernetes olayı yok.",
+     "Podların OOMKilled olması node NotReady durumuyla ilişkilendirilebilir.",
+     "Olay anında gke-cluster-pool-a-nx71 node'u NotReady durumuna geçmiş.",
+     "Bu node üzerindeki podlar olaydan sonra 8 ila 20 dakika içinde yeniden oluşturulmuş.",
+     "Diğer node'lar Ready durumda ve podlar ya uzun süre sonra ya da hiç yeniden oluşturulmamış."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "sre-lab: 2026-10-08 19:06:55Z → 2026-10-08 20:06:55Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T19:54:25.229000Z\"})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 19:54:25Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +118 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7fd649474d-clmtk |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 2 | sre-lab-app-56fd4d597c-snm5w, sre-lab-app-6c9f667fb7-rkp4v |\n| gke-cluster-pool-a-nx71 | NotReady oldu | olaydan +20 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-56fd4d597c-2xr9j |"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\", \"label_selector\": \"app=sre-lab-app\"})",
+      "summary": "Pod (sre-lab): nesne yok"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T19:54:25.229000Z\", \"pod_regex\": \"sre-lab-app-.+\"})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 19:54:25Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +118 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7fd649474d-clmtk |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 2 | sre-lab-app-56fd4d597c-snm5w, sre-lab-app-6c9f667fb7-rkp4v |\n| gke-cluster-pool-a-nx71 | NotReady oldu | olaydan +20 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-56fd4d597c-2xr9j |"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T20:06:55.229000Z\", \"pod_regex\": \"sre-lab-app-.+\"})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 20:06:55Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +105 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7fd649474d-clmtk |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 2 | sre-lab-app-6c9f667fb7-rkp4v, sre-lab-app-7b4885d497-554ld |\n| gke-cluster-pool-a-nx71 | NotReady oldu | olaydan +8 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7b4885d497-5jzt6 |"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"involved_name\": \"sre-lab-app-6c9f667fb7-rkp4v\", \"minutes\": 60, \"end\": \"2026-10-08T20:06:55.229000Z\"})",
+      "summary": "sre-lab: 2026-10-08 19:06:55Z → 2026-10-08 20:06:55Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T19:54:25Z\", \"lookback_minutes\": 15})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 19:54:25Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +118 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7fd649474d-clmtk |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 2 | sre-lab-app-56fd4d597c-snm5w, sre-lab-app-6c9f667fb7-rkp4v |\n| gke-cluster-pool-a-nx71 | NotReady oldu | olaydan +20 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-56fd4d597c-2xr9j |"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T20:06:55Z\", \"lookback_minutes\": 15})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 20:06:55Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +105 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7fd649474d-clmtk |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 2 | sre-lab-app-6c9f667fb7-rkp4v, sre-lab-app-7b4885d497-554ld |\n| gke-cluster-pool-a-nx71 | NotReady oldu | olaydan +8 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-7b4885d497-5jzt6 |"
+     }
+    ],
+    "suspects": [
+     "application_release",
+     "capacity_performance",
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.events",
+     "k8s.placement",
+     "k8s.list_objects",
+     "k8s.previous_logs",
+     "k8s.get_object",
+     "k8s.list_objects",
+     "k8s.previous_logs",
+     "k8s.events"
+    ],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "bu yetenekte anomali yok",
+    "observations": [],
+    "evidence": [],
+    "suspects": [],
+    "confidence": "low",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 98722,
+   "by_scope": {
+    "metrics": 27726,
+    "k8s": 32374,
+    "product": 899
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "application_service_bug",
+  "seconds": 191.1
+ },
+ "2017470e584b": {
+  "thread": "2017470e584b:20261014T220514",
+  "report": {
+   "summary": "Loadtest namespace'indeki milvus-datanode podunda CPU throttling ve bellek limit aşımı nedeniyle OOMKilled oldu ve yeniden başlatıldı. Node'lar olay anında Ready durumdaydı ve deployment'ta son 2 saatte image değişikliği olmadı. Bu nedenle sorun pod'un kaynak yetersizliği nedeniyle yaşandı.",
+   "category": "capacity_performance",
+   "root_cause": "Pod'un CPU throttling ve bellek limit aşımı nedeniyle OOMKilled olması ve yeniden başlatılması",
+   "details": "Metrics verileri, milvus-datanode podunda CPU throttling oranının %77 ve bellek kullanımının limitin %100'ünde olduğunu gösterdi. Pod 6 kez OOMKilled nedeniyle yeniden başlatıldı. Golden signals baseline değerleri CPU ve bellek kullanımının normalin çok üzerinde olduğunu doğruladı. K8s verileri node kaybı olmadığını ve deployment'ta image değişikliği olmadığını teyit etti. Traces verileri hata spanları gösterdi ancak bu durum kapasite sorununu açıklamıyor. Reddedilen hipotezler: application_release (image değişikliği yok), planned_infrastructure_change (elle veya planlı değişiklik yok), hardware_problem (node'lar Ready). Kanıt zinciri: metrics uzmanı CPU throttling ve bellek limit aşımını, k8s uzmanı pod yeniden başlatmayı ve node durumunu doğruladı.",
+   "evidence_chain": [
+    "metrics: milvus-datanode podunda CPU throttling %77, bellek %100 limit",
+    "k8s: pod OOMKilled, node'lar Ready, deployment image değişikliği yok"
+   ],
+   "rejected": [
+    {
+     "category": "application_release",
+     "reason": "Son 2 saatte deployment'ta image değişikliği yok"
+    },
+    {
+     "category": "planned_infrastructure_change",
+     "reason": "Elle yapılan değişiklik veya planlı altyapı değişikliği yok"
+    },
+    {
+     "category": "hardware_problem",
+     "reason": "Node'lar olay anında Ready, node kaybı yok"
+    }
+   ],
+   "recommendations": [],
+   "certain": true,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "capacity_performance",
+   "root_cause": "Pod'un CPU throttling ve bellek limit aşımı nedeniyle OOMKilled olması ve yeniden başlatılması",
+   "supporting": [
+    "k8s",
+    "metrics"
+   ],
+   "rejected": [
+    {
+     "category": "application_release",
+     "reason": "Son 2 saatte deployment'ta image değişikliği yok"
+    },
+    {
+     "category": "planned_infrastructure_change",
+     "reason": "Elle yapılan değişiklik veya planlı altyapı değişikliği yok"
+    },
+    {
+     "category": "hardware_problem",
+     "reason": "Node'lar olay anında Ready, node kaybı yok"
+    }
+   ],
+   "contributing": [],
+   "timeline": [],
+   "method": "model"
+  },
+  "evaluation": {
+   "confidence": "high",
+   "cross_validated": true,
+   "suggested_deep_dives": [],
+   "note": ""
+  },
+  "specialists": [
+   "metrics",
+   "traces",
+   "k8s"
+  ],
+  "findings": {
+   "metrics": {
+    "specialist": "metrics",
+    "summary": "loadtest namespace'inde milvus-datanode pod'unda yüksek CPU throttling (%77) ve bellek limit aşımı (%100) gözlemlendi. Bu durum pod'un OOMKilled olmasına ve restart sayısının artmasına neden oldu.",
+    "observations": [
+     "cus-loadtest-milvus-datanode-6ff59d79d8-qmsfb podunda CPU throttling %77 ve bellek kullanımı limitin %100'ünde.",
+     "Pod OOMKilled nedeniyle 6 kez restart olmuş.",
+     "Golden signals baseline değerleri CPU ve bellek kullanımının normalin çok üzerinde olduğunu gösteriyor."
+    ],
+    "evidence": [
+     {
+      "source": "metrics.workload_signals({\"namespace\": \"loadtest\", \"minutes\": 60, \"end\": \"2026-10-08T22:43:18.752000Z\"})",
+      "summary": "loadtest pod'ları, 2026-10-08 21:43:18Z → 2026-10-08 22:43:18Z (restart ve throttle pencere boyunca; cpu/bellek: son 5 dk / pencere tepesi)\n\n| pod | restart | neden | cpu | cpu_limit | throttle | bellek | bellek_limit |\n|---|---|---|---|---|---|---|---|\n| cus-loadtest-etcd-0 | 0 | Error | 0.0126 | 0.5 | 0% | 38.32M | 536.87M |\n| cus-loadtest-etcd-1 | 0 | - | 0.0143 | 0.5 | 0% | 95.63M | 536.87M |\n| cus-loadtest-etcd-2 | 1 | Error | 0.0113 | 0.5 | 0% | 214.69M | 536.87M |\n| cus-loadtest-milvus-backup-29857140-tgc5g | 0 | - | - | - | - | - | - |\n| cus-loadtest-milvus-datanode-6ff59d79d8-kvrqf | 3.08 | - | - | - | 82% | 6.39G | - |\n| cus-loadtest-milvus-datanode-6ff59d79d8-qmsfb | 6.06 | OOMKilled | - | 2 | 77% | 8.56G | 2.15G |\n| cus-loadtest-milvus-metrics-agent-76b89c9d8b-qkvsl | 0 | - | 0"
+     },
+     {
+      "source": "metrics.query({\"promql\": \"sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\\\"loadtest\\\"}[5m])) by (pod, container)\", \"at\": \"2026-10-08T22:43:18.752000Z\"})",
+      "summary": "`sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"loadtest\"}[5m])) by (pod, container)` @ 2026-10-08 22:43:18Z — 13 seri\n\n| etiketler | değer |\n|---|---|\n| container=otelcol, pod=cus-loadtest-milvus-metrics-agent-76b89c9d8b-qkvsl | 0.0811 |\n| pod=cus-loadtest-milvus-metrics-agent-76b89c9d8b-qkvsl | 0.0751 |\n| container=etcd, pod=cus-loadtest-etcd-0 | 0.00358 |\n| container=accesslog-agent, pod=cus-loadtest-milvus-proxy-6bc9d7dc94-q6bv6 | 0 |\n| container=etcd, pod=cus-loadtest-etcd-2 | 0 |\n| container=etcd, pod=cus-loadtest-etcd-1 | 0 |\n| container=mixcoord, pod=cus-loadtest-milvus-mixcoord-578f47f567-lxvnp | 0 |\n| container=proxy, pod=cus-loadtest-milvus-proxy-6bc9d7dc94-q6bv6 | 0 |\n| container=querynode, pod=cus-loadtest-milvus-querynode-0-5b56546787-lrklt | 0 |\n| container=st"
+     },
+     {
+      "source": "metrics.query({\"promql\": \"sum(container_memory_usage_bytes{namespace=\\\"loadtest\\\"}) by (pod, container)\", \"at\": \"2026-10-08T22:43:18.752000Z\"})",
+      "summary": "`sum(container_memory_usage_bytes{namespace=\"loadtest\"}) by (pod, container)` @ 2026-10-08 22:43:18Z — 19 seri\n\n| etiketler | değer |\n|---|---|\n| pod=cus-loadtest-milvus-streamingnode-8ffb98c77-nhr78 | 211.31M |\n| pod=cus-loadtest-milvus-querynode-0-5b56546787-lrklt | 186.99M |\n| pod=cus-loadtest-milvus-mixcoord-578f47f567-lxvnp | 182.52M |\n| pod=cus-loadtest-milvus-proxy-6bc9d7dc94-q6bv6 | 182.28M |\n| container=streamingnode, pod=cus-loadtest-milvus-streamingnode-8ffb98c77-nhr78 | 137.19M |\n| container=querynode, pod=cus-loadtest-milvus-querynode-0-5b56546787-lrklt | 112.64M |\n| pod=cus-loadtest-etcd-1 | 110.80M |\n| container=etcd, pod=cus-loadtest-etcd-1 | 110.26M |\n| pod=cus-loadtest-etcd-0 | 109.24M |\n| container=mixcoord, pod=cus-loadtest-milvus-mixcoord-578f47f567-lxvnp | 108.70M |\n|"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "metrics.workload_signals",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query",
+     "metrics.query"
+    ],
+    "deep_dive": false
+   },
+   "traces": {
+    "specialist": "traces",
+    "summary": "1 kontrol anomali gördü: error_spans",
+    "observations": [
+     "error_spans: 3 hata trace'i, 0 yavaş bağımlılık trace'i (sre-agent)"
+    ],
+    "evidence": [
+     {
+      "source": "error_spans",
+      "summary": "3 hata trace'i, 0 yavaş bağımlılık trace'i (sre-agent)"
+     }
+    ],
+    "suspects": [
+     "application_service_bug",
+     "network"
+    ],
+    "confidence": "medium",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   },
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "loadtest namespace'de Milvus pod'larından birinde OOMKilled nedeniyle yeniden başlatma yaşandı. Olay anında node'lar Ready durumdaydı ancak bir node olaydan sonra yeniden oluşturuldu, bu da node kaybı olmadığını gösteriyor. Son 2 saatte deployment'ta image değişikliği olmadı, elle yapılan değişiklik veya planlı altyapı değişikliği de yok.",
+    "observations": [
+     "Pod yeniden başlatıldı (OOMKilled).",
+     "Node'lar olay anında Ready, ancak bir node olaydan sonra yeniden oluşturuldu.",
+     "Son 2 saatte deployment'ta image değişikliği yok.",
+     "Son 1 saatte k8s eventi yok."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"loadtest\", \"label_selector\": \"app=vectordb\"})",
+      "summary": "Pod (loadtest): nesne yok"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"loadtest\", \"label_selector\": \"app=milvus\"})",
+      "summary": "Pod (loadtest): nesne yok"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"loadtest\"})",
+      "summary": "Pod (loadtest): nesne yok"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"loadtest\", \"minutes\": 60, \"end\": \"2026-10-08T22:43:18Z\"})",
+      "summary": "loadtest: 2026-10-08 21:43:18Z → 2026-10-08 22:43:18Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"loadtest\", \"minutes\": 120, \"end\": \"2026-10-08T22:43:18Z\"})",
+      "summary": "loadtest 2026-10-08 20:43:18Z → 2026-10-08 22:43:18Z (kaynaklar: helm, manual, rollout): 1 değişiklik\n\n| zaman | kaynak | nesne | yapan | ayrıntı |\n|---|---|---|---|---|\n| 2026-10-08 21:18:14Z | rollout | Deployment/milvus-load-traffic | - | revision=4, images_before={'traffic': 'registry.example.com/sre-agent-apps/milvus-load:0.1.2'}, images_after={'traffic': 'registry.example.com/sre-agent-apps/milvus-load:0.1.2'}, image_changed=False |"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"loadtest\", \"at\": \"2026-10-08T22:43:18Z\", \"lookback_minutes\": 15})",
+      "summary": "loadtest yerleşimi @ 2026-10-08 22:43:18Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | Ready | olaydan +86 dk sonra yeniden oluşturuldu | 2 | cus-loadtest-etcd-2, cus-loadtest-milvus-datanode-6ff59d79d8-qmsfb |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 8 | cus-loadtest-etcd-0, cus-loadtest-etcd-1, cus-loadtest-milvus-backup-29857140-tgc5g, cus-loadtest-milvus-metrics-agent-76b89c9d8b-qkvsl, cus-loadtest-milvus-mixcoord-578f47f567-lxvnp, cus-loadtest-milvus-proxy-6bc9d7dc94-q6bv6, cus-loadtest-milvus-querynode-0-5b56546787-lrklt, cus-loadtest-milvus-streamingnode-8ffb98c77-nhr78 |"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.list_objects",
+     "k8s.list_objects",
+     "k8s.list_objects",
+     "k8s.events",
+     "k8s.recent_changes",
+     "k8s.placement",
+     "k8s.list_objects",
+     "k8s.list_objects"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 55967,
+   "by_scope": {
+    "metrics": 21545,
+    "traces": 5682,
+    "k8s": 15168
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "capacity_performance",
+  "seconds": 117.6
+ },
+ "a8abda6e1e6b": {
+  "thread": "a8abda6e1e6b:20261014T220712",
+  "report": {
+   "summary": "sre-lab namespace'inde Deployment/sre-lab-app üzerinde elle yapılan rollout ve kubectl-rollout komutu ile değişiklik yapılması sonucu bir pod Pending durumda kalmış ve node'a atanmamıştır. Olayda kayıp node yoktur ve pod olaydan sonra yeniden oluşturulmuştur. Bu durum plansız ve elle yapılan değişikliğin (human_error) sonucudur.",
+   "category": "human_error",
+   "root_cause": "sre-lab namespace'inde Deployment/sre-lab-app üzerinde 20:45:22Z civarında elle yapılan rollout ve kubectl-rollout komutu ile değişiklik yapılması.",
+   "details": "Helm ve manuel değişiklikler Deployment/sre-lab-app üzerinde gerçekleşmiş, elle yapılan rollout ve kubectl-rollout komutu tespit edilmiştir. Olay anında bir pod Pending durumunda ve node'a atanmamış, diğer pod ise olaydan sonra yeniden oluşturulmuştur. Kayıp node veya planlı altyapı değişikliği yoktur.",
+   "evidence_chain": [
+    "k8s: Deployment/sre-lab-app üzerinde elle rollout ve kubectl-rollout komutu ile değişiklik yapıldı.",
+    "Olay anında bir pod Pending durumda ve node'a atanmamış.",
+    "Olaydan sonra pod yeniden oluşturuldu."
+   ],
+   "rejected": [
+    {
+     "category": "application_release",
+     "reason": "Değişiklik dağıtım hattından değil, elle yapılmış."
+    },
+    {
+     "category": "planned_infrastructure_change",
+     "reason": "Node kaybı veya planlı bakım yok."
+    }
+   ],
+   "recommendations": [],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "human_error",
+   "root_cause": "sre-lab namespace'inde Deployment/sre-lab-app üzerinde 20:45:22Z civarında elle yapılan bir rollout ve kubectl-rollout komutu ile değişiklik yapılmıştır. Olay anında bir pod Pending durumunda ve node atanmamış, diğer pod ise olaydan sonra yeniden oluşturulmuştur.",
+   "supporting": [
+    "k8s"
+   ],
+   "rejected": [],
+   "contributing": [],
+   "timeline": [],
+   "method": "passthrough"
+  },
+  "evaluation": {
+   "confidence": "low",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": "deterministik değerlendirme (model yok ya da hata)"
+  },
+  "specialists": [
+   "k8s"
+  ],
+  "findings": {
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "sre-lab namespace'inde Deployment/sre-lab-app üzerinde 20:45:22Z civarında elle yapılan bir rollout ve kubectl-rollout komutu ile değişiklik yapılmıştır. Olay anında bir pod Pending durumunda ve node atanmamış, diğer pod ise olaydan sonra yeniden oluşturulmuştur.",
+    "observations": [
+     "Helm ve manuel değişiklikler Deployment/sre-lab-app üzerinde gerçekleşmiş.",
+     "Elle yapılan rollout ve kubectl-rollout komutu var.",
+     "Olay anında bir pod Pending durumda ve node'a atanmamış.",
+     "Olaydan sonra node yeniden oluşturulmuş."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\", \"label_selector\": \"app=sre-lab-app\"})",
+      "summary": "Pod (sre-lab): nesne yok"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"end\": \"2026-10-08T21:04:25.229000Z\"})",
+      "summary": "sre-lab: 2026-10-08 20:04:25Z → 2026-10-08 21:04:25Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T21:04:25.229000Z\"})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 21:04:25Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| (node'a atanmamış) | - | - | 1 | sre-lab-app-689ff9fcd8-2dl2v |\n| gke-cluster-pool-a-8wvt | Ready | olaydan +48 dk sonra yeniden oluşturuldu | 1 | sre-lab-app-69c457dfc-pths2 |"
+     },
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\"})",
+      "summary": "Pod (sre-lab): 1 nesne\n\n| pod | faz | hazır | restart | node | yaş | durum |\n|---|---|---|---|---|---|---|\n| sre-lab-app-69c457dfc-nbtv6 | Running | 1/1 | 0 | gke-cluster-pool-a-d65v | 4g | - |"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"sre-lab\", \"minutes\": 120, \"end\": \"2026-10-08T21:04:25.229000Z\"})",
+      "summary": "sre-lab 2026-10-08 19:04:25Z → 2026-10-08 21:04:25Z (kaynaklar: helm, manual, rollout): 7 değişiklik\n\n| zaman | kaynak | nesne | yapan | ayrıntı |\n|---|---|---|---|---|\n| 2026-10-08 19:44:04Z | rollout | Deployment/sre-lab-app | - | revision=24, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library/python:3.14.99-yok-slim'}, image_changed=True |\n| 2026-10-08 19:51:45Z | rollout | Deployment/sre-lab-app | - | revision=18, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library/python:3.14.7-slim'}, image_changed=False |\n| 2026-10-08 20:05:29Z | rollout | Deployment/sre-lab-app | - | revision=20, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library"
+     }
+    ],
+    "suspects": [
+     "human_error"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.list_objects",
+     "k8s.events",
+     "k8s.placement",
+     "k8s.previous_logs",
+     "k8s.list_objects",
+     "k8s.list_objects",
+     "k8s.recent_changes",
+     "k8s.events"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 18238,
+   "by_scope": {
+    "k8s": 14576
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "capacity_performance",
+  "seconds": 43.1
+ },
+ "5adea0b9d729": {
+  "thread": "5adea0b9d729:20261014T220755",
+  "report": {
+   "summary": "Olay anında 'sre-lab' namespace'inde 'sre-lab-app' pod'ları yoktu ve aynı zamanda Helm güncellemesi ve rollout gerçekleşti. Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu, bu da podların etkilenmesine neden oldu. Bu durum, podların geçici olarak bulunmamasına yol açtı.",
+   "category": "hardware_problem",
+   "root_cause": "Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu, bu da 'sre-lab-app' podlarının olay anında olmamasına neden oldu.",
+   "details": "Olay anında 'sre-lab' namespace'inde 'sre-lab-app' label'lı pod yoktu. Aynı zaman diliminde Helm güncellemesi ve rollout gerçekleşti. NotReady olan node üzerinde podlar yeniden oluşturuldu. Node NotReady durumu podların geçici olarak kaybolmasına yol açtı.",
+   "evidence_chain": [
+    "Olay anında 'sre-lab-app' label'lı pod yoktu.",
+    "Helm güncellemesi ve rollout aynı zaman diliminde gerçekleşti.",
+    "Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu.",
+    "NotReady node üzerinde podlar yeniden oluşturuldu."
+   ],
+   "rejected": [
+    {
+     "category": "application_release",
+     "reason": "Yeni sürüm sorunsuz ayağa kalktı ama podlar olay anında yoktu, sorun node NotReady durumundan kaynaklandı."
+    }
+   ],
+   "recommendations": [],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "application_release",
+   "root_cause": "Olay anında 'sre-lab' namespace'inde 'sre-lab-app' pod'ları yoktu, ancak aynı zamanda Helm güncellemesi ve rollout gerçekleşti. Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu, bu da podların etkilenmesine neden oldu.",
+   "supporting": [
+    "k8s"
+   ],
+   "rejected": [],
+   "contributing": [],
+   "timeline": [],
+   "method": "passthrough"
+  },
+  "evaluation": {
+   "confidence": "low",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": "deterministik değerlendirme (model yok ya da hata)"
+  },
+  "specialists": [
+   "k8s"
+  ],
+  "findings": {
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "Olay anında 'sre-lab' namespace'inde 'sre-lab-app' pod'ları yoktu, ancak aynı zamanda Helm güncellemesi ve rollout gerçekleşti. Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu, bu da podların etkilenmesine neden oldu.",
+    "observations": [
+     "Olay anında 'sre-lab-app' label'lı pod yoktu.",
+     "Helm güncellemesi ve rollout aynı zaman diliminde gerçekleşti.",
+     "Bir node NotReady oldu ve 32 dakika sonra yeniden oluşturuldu.",
+     "NotReady node üzerinde podlar yeniden oluşturuldu."
+    ],
+    "evidence": [
+     {
+      "source": "k8s.list_objects({\"kind\": \"Pod\", \"namespace\": \"sre-lab\", \"label_selector\": \"app=sre-lab-app\"})",
+      "summary": "Pod (sre-lab): nesne yok"
+     },
+     {
+      "source": "k8s.events({\"namespace\": \"sre-lab\", \"end\": \"2026-10-08T21:20:25.229000Z\", \"minutes\": 60})",
+      "summary": "sre-lab: 2026-10-08 20:20:25Z → 2026-10-08 21:20:25Z arasında olay yok (olaylar ~1 saat tutulur)"
+     },
+     {
+      "source": "k8s.recent_changes({\"namespace\": \"sre-lab\", \"end\": \"2026-10-08T21:20:25.229000Z\", \"minutes\": 120})",
+      "summary": "sre-lab 2026-10-08 19:20:25Z → 2026-10-08 21:20:25Z (kaynaklar: helm, manual, rollout): 8 değişiklik\n\n| zaman | kaynak | nesne | yapan | ayrıntı |\n|---|---|---|---|---|\n| 2026-10-08 19:44:04Z | rollout | Deployment/sre-lab-app | - | revision=24, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library/python:3.14.99-yok-slim'}, image_changed=True |\n| 2026-10-08 19:51:45Z | rollout | Deployment/sre-lab-app | - | revision=18, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library/python:3.14.7-slim'}, image_changed=False |\n| 2026-10-08 20:05:29Z | rollout | Deployment/sre-lab-app | - | revision=20, images_before={'app': 'docker.io/library/python:3.14.7-slim'}, images_after={'app': 'docker.io/library"
+     },
+     {
+      "source": "k8s.placement({\"namespace\": \"sre-lab\", \"at\": \"2026-10-08T21:20:25.229000Z\", \"lookback_minutes\": 15})",
+      "summary": "sre-lab yerleşimi @ 2026-10-08 21:20:25Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n| node | olay anında (son 15 dk) | sonra | pod sayısı | pod |\n|---|---|---|---|---|\n| gke-cluster-pool-a-8wvt | NotReady oldu | olaydan +32 dk sonra yeniden oluşturuldu | 3 | pod-network-latency-5mgo8p-r9w7z, s08-network-latency-runner, sre-lab-app-69c457dfc-pths2 |\n| gke-cluster-pool-a-g3re | Ready | bugün yok | 3 | pod-network-latency-5mgo8p-6v89k, pod-network-latency-helper-jucag8, sre-lab-app-69c457dfc-s5d7x |"
+     }
+    ],
+    "suspects": [
+     "application_release",
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "k8s.list_objects",
+     "k8s.events",
+     "k8s.recent_changes",
+     "k8s.placement"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 12946,
+   "by_scope": {
+    "k8s": 9394
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "network",
+  "seconds": 26.3
+ },
+ "2b36cef6c3b0": {
+  "thread": "2b36cef6c3b0:20261014T220821",
+  "report": {
+   "summary": "KafkaConsumerLagHigh alarmı, kafka_consumer_lag metriğinin olay anında ve öncesinde bulunmaması nedeniyle gerçek bir lag artışını yansıtmamaktadır. Node'larda Ready durumu Unknown olarak gözlenmiş ve NodeNotReady, Shutdown gibi olaylar yaşanmıştır. Milvus bileşeni olay anında mevcut değildir, dolayısıyla alarmın kaynağı Milvus değildir; kök neden metrik toplanamaması veya raporlama hatasıdır.",
+   "category": "infrastructure_system",
+   "root_cause": "KafkaConsumerLagHigh alarmı metrik toplanamaması veya raporlama hatasından kaynaklanıyor",
+   "details": "Olay anında kafka_consumer_lag metriği sistemde bulunmamaktadır, bu nedenle alarm gerçek bir lag artışını göstermemektedir. Kubernetes node'larında Ready durumu Unknown olarak raporlanmış ve NodeNotReady ile Shutdown olayları yaşanmıştır, bu da node seviyesinde bir donanım problemi olabileceğini düşündürmektedir. Ayrıca, vectordb namespace'inde Milvus bileşeni yoktur, Milvus ile ilgili pod, etcd, koordinatör veya object storage bileşeni çalışmamaktadır, bu nedenle alarmın Milvus'tan kaynaklanmadığı kesinleşmiştir.",
+   "evidence_chain": [
+    "metrics: kafka_consumer_lag metriği olay anında ve öncesinde yok",
+    "k8s: node_conditions ve node_events, node'larda Ready=Unknown ve NodeNotReady, Shutdown olayları",
+    "product: vectordb namespace'inde Milvus bileşeni yok"
+   ],
+   "rejected": [
+    {
+     "category": "database",
+     "reason": "Milvus bileşeni yok, Milvus ile ilgili pod, etcd, koordinatör veya object storage bileşeni çalışmıyor, Milvus metrik veya durum verisi alınamıyor"
+    }
+   ],
+   "recommendations": [],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "infrastructure_system",
+   "root_cause": "KafkaConsumerLagHigh alarmı metrik toplanamaması veya raporlama hatasından kaynaklanıyor",
+   "supporting": [
+    "metrics"
+   ],
+   "rejected": [
+    {
+     "category": "database",
+     "reason": "Milvus bileşeni yok, Milvus ile ilgili pod, etcd, koordinatör veya object storage bileşeni çalışmıyor, Milvus metrik veya durum verisi alınamıyor"
+    }
+   ],
+   "contributing": [],
+   "timeline": [],
+   "method": "model"
+  },
+  "evaluation": {
+   "confidence": "high",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": ""
+  },
+  "specialists": [
+   "metrics",
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "metrics": {
+    "specialist": "metrics",
+    "summary": "Olay anında ve öncesinde kafka_consumer_lag metriği sistemde bulunmamaktadır. Bu nedenle KafkaConsumerLagHigh alarmı gerçek bir lag artışını yansıtmamaktadır, muhtemelen metrik toplanamaması veya raporlama hatasından kaynaklanmaktadır.",
+    "observations": [
+     "kafka_consumer_lag metriği olay anında ve öncesinde yok",
+     "KafkaConsumerLagHigh alarmı metrik eksikliğinden kaynaklanıyor"
+    ],
+    "evidence": [
+     {
+      "source": "metrics.query({\"promql\": \"kafka_consumer_lag{consumer=\\\"telemetry-consumer\\\",topic=\\\"vectordb_milvus_metrics\\\"}\", \"at\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "`kafka_consumer_lag{consumer=\"telemetry-consumer\",topic=\"vectordb_milvus_metrics\"}` @ 2026-10-08 21:37:59Z: sonuç yok"
+     },
+     {
+      "source": "metrics.range_summary({\"promql\": \"kafka_consumer_lag{consumer=\\\"telemetry-consumer\\\",topic=\\\"vectordb_milvus_metrics\\\"}\", \"minutes\": 60, \"end\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "`kafka_consumer_lag{consumer=\"telemetry-consumer\",topic=\"vectordb_milvus_metrics\"}` 2026-10-08 20:37:59Z → 2026-10-08 21:37:59Z: sonuç yok"
+     },
+     {
+      "source": "metrics.discover({\"name_regex\": \"kafka_consumer_lag\"})",
+      "summary": "`kafka_consumer_lag`: metrik yok"
+     }
+    ],
+    "suspects": [
+     "infrastructure_system"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "metrics.query",
+     "metrics.range_summary",
+     "metrics.discover"
+    ],
+    "deep_dive": false
+   },
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "2 kontrol anomali gördü: node_conditions, node_events",
+    "observations": [
+     "node_conditions: tüm node'lar: gke-cluster-pool-a-8wvt Ready=Unknown",
+     "node_events: tüm node'lar: 6 node olayı (NodeNotReady, Shutdown)"
+    ],
+    "evidence": [
+     {
+      "source": "node_conditions",
+      "summary": "tüm node'lar: gke-cluster-pool-a-8wvt Ready=Unknown"
+     },
+     {
+      "source": "node_events",
+      "summary": "tüm node'lar: 6 node olayı (NodeNotReady, Shutdown)"
+     }
+    ],
+    "suspects": [
+     "hardware_problem"
+    ],
+    "confidence": "high",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "Olay anında vectordb namespace'inde Milvus bileşeni yok, dolayısıyla KafkaConsumerLagHigh alarmı Milvus'tan kaynaklanmıyor. Kök neden Milvus dışı bir yerde aranmalı.",
+    "observations": [
+     "Milvus bileşeni yok (topology, run_check sonuçları).",
+     "Milvus ile ilgili pod, etcd, koordinatör veya object storage bileşeni çalışmıyor.",
+     "Milvus metrik veya durum verisi alınamıyor."
+    ],
+    "evidence": [
+     {
+      "source": "product.topology({\"namespace\": \"vectordb\", \"at\": \"2026-10-08T21:37:59.226000Z\", \"lookback_minutes\": 15})",
+      "summary": "vectordb yerleşimi @ 2026-10-08 21:37:59Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\nBu namespace'te paket bileşeni bulunamadı."
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_health\", \"namespace\": \"vectordb\", \"minutes\": 30, \"end\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "milvus_health [no_data] 2026-10-08 21:07:59Z → 2026-10-08 21:37:59Z: vectordb: Milvus kaynağı yok\nkategoriler: database, vendor_external\nsorgu: `list milvus.io/Milvus namespace=vectordb`"
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_etcd\", \"namespace\": \"vectordb\", \"minutes\": 30, \"end\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "milvus_etcd [no_data] 2026-10-08 21:07:59Z → 2026-10-08 21:37:59Z: vectordb: etcd pod'u yok\nkategoriler: database\nsorgu: `kube_pod_status_ready{namespace=\"vectordb\",pod=~\".*etcd.*\",condition=\"true\"} == 0\nsum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"vectordb\",pod=~\".*etcd.*\"}[1800s])) > 0\nsum(increase(milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\",status=\"fail\"}[1800s]))\ncount(kube_pod_info{namespace=\"vectordb\",pod=~\".*etcd.*\"})`"
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_coordinators\", \"namespace\": \"vectordb\", \"minutes\": 30, \"end\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "milvus_coordinators [no_data] 2026-10-08 21:07:59Z → 2026-10-08 21:37:59Z: vectordb: koordinatör metriği yok\nkategoriler: database\nsorgu: `max(milvus_querycoord_querynode_num{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\"})\nmax(milvus_datacoord_datanode_num{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\"})\ntime() - max by (node_id) (milvus_querycoord_last_heartbeat_timestamp{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\"}) / 1e9`"
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_object_storage\", \"namespace\": \"vectordb\", \"minutes\": 30, \"end\": \"2026-10-08T21:37:59.226000Z\"})",
+      "summary": "milvus_object_storage [no_data] 2026-10-08 21:07:59Z → 2026-10-08 21:37:59Z: vectordb: storage metriği yok\nkategoriler: vendor_external\nsorgu: `sum(increase(internal_storage_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\",status=\"fail\"}[1800s]))\nsum(increase(internal_storage_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\",status=~\"success|fail\"}[1800s]))\nhistogram_quantile(0.99, sum by (le) (rate(internal_storage_request_latency_bucket{job=\"milvus-metrics\",k8s_namespace_name=\"vectordb\"}[1800s])))`"
+     }
+    ],
+    "suspects": [],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "product.topology",
+     "product.list_checks",
+     "product.run_check",
+     "product.run_check",
+     "product.run_check",
+     "product.run_check"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 31668,
+   "by_scope": {
+    "metrics": 6485,
+    "k8s": 1132,
+    "product": 13422
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "infrastructure_system",
+  "seconds": 61.1
+ },
+ "858606a50bf3": {
+  "thread": "858606a50bf3:20261014T220922",
+  "report": {
+   "summary": "Loadtest namespace'indeki Milvus querynode pod'u belleğinin %81'ini kullanıyordu ve yazma kesme eşiği %95 olarak belirlenmişti. Kaybedilen node yoktu, pod sağlam bir node'da çalışıyordu. Yüksek bellek kullanımı nedeniyle alarm tetiklendi ve pod OOMKilled ile yeniden başladı.",
+   "category": "capacity_performance",
+   "root_cause": "Milvus querynode pod'unun bellek kullanımı yüksek olup, pod kendi bellek limitine yakın çalışıyordu ve bu durum OOMKilled ile sonuçlandı.",
+   "details": "Metrics verileri, pod'un bellek kullanımının limitin %90'ının üzerinde olduğunu ve golden signals baseline değerlerinin normalin çok üzerinde olduğunu gösterdi. K8s verileri pod'un OOMKilled nedeniyle yeniden başladığını doğruladı. Product verileri ise pod'un sağlam bir node'da çalıştığını ve node kaybı olmadığını belirtti.",
+   "evidence_chain": [
+    "metrics: golden_signals_baseline ve memory_near_limit anomali tespiti",
+    "k8s: pod_restarts ile OOMKilled yeniden başlatma",
+    "product: milvus_querynode_memory_quota yüksek bellek kullanımı ve sağlam node durumu"
+   ],
+   "rejected": [],
+   "recommendations": [
+    "Pod bellek limitlerinin ve kullanımının detaylı incelenmesi",
+    "Bellek kullanımını artıran işlemlerin ve yükün analiz edilmesi",
+    "Pod ve node kaynak kullanımının izlenmesi ve karşılaştırılması"
+   ],
+   "certain": false,
+   "source": "model",
+   "deep_dive_count": 0
+  },
+  "correlation": {
+   "category": "capacity_performance",
+   "root_cause": "Olay anında loadtest namespace'inde Milvus querynode pod'u belleğinin %81'ini kullanıyordu ve yazma kesme eşiği %95 olarak belirlenmişti. Kaybedilen node yoktu, pod sağlam bir node'da çalışıyordu, yüksek bellek kullanımı alarmı tetikledi.",
+   "supporting": [
+    "product"
+   ],
+   "rejected": [],
+   "contributing": [],
+   "timeline": [],
+   "method": "passthrough"
+  },
+  "evaluation": {
+   "confidence": "low",
+   "cross_validated": false,
+   "suggested_deep_dives": [],
+   "note": "deterministik değerlendirme (model yok ya da hata)"
+  },
+  "specialists": [
+   "metrics",
+   "k8s",
+   "product"
+  ],
+  "findings": {
+   "metrics": {
+    "specialist": "metrics",
+    "summary": "2 kontrol anomali gördü: golden_signals_baseline, memory_near_limit",
+    "observations": [
+     "golden_signals_baseline: loadtest: 1w öncesinin 2 katı: cpu_cores 1.3391 (baseline 0.1069); memory_bytes 3.92457e+09 (baseline 7.52544e+08); network_rx_bytes_per_s 7.77554e+06 (baseline 30144.8)",
+     "memory_near_limit: loadtest: 1 container belleği limitin %90'ının üzerinde (en yüksek cus-loadtest-milvus-datanode-6ff59d79d8-wjv9q/datanode %95)"
+    ],
+    "evidence": [
+     {
+      "source": "golden_signals_baseline",
+      "summary": "loadtest: 1w öncesinin 2 katı: cpu_cores 1.3391 (baseline 0.1069); memory_bytes 3.92457e+09 (baseline 7.52544e+08); network_rx_bytes_per_s 7.77554e+06 (baseline 30144.8)"
+     },
+     {
+      "source": "memory_near_limit",
+      "summary": "loadtest: 1 container belleği limitin %90'ının üzerinde (en yüksek cus-loadtest-milvus-datanode-6ff59d79d8-wjv9q/datanode %95)"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   },
+   "k8s": {
+    "specialist": "k8s",
+    "summary": "1 kontrol anomali gördü: pod_restarts",
+    "observations": [
+     "pod_restarts: loadtest: 1 container yeniden başladı (OOMKilled)"
+    ],
+    "evidence": [
+     {
+      "source": "pod_restarts",
+      "summary": "loadtest: 1 container yeniden başladı (OOMKilled)"
+     }
+    ],
+    "suspects": [
+     "capacity_performance",
+     "application_service_bug"
+    ],
+    "confidence": "medium",
+    "error": "ModelError: model çağrısı başarısız (gpt-4.1-mini): HTTP 429: {\"error\":{\"message\":\"litellm.RateLimitError: AzureException RateLimitError - Your requests to gpt-4.1-mini for Chatgpt-35 in eastus have exceeded toke",
+    "tools_used": [],
+    "deep_dive": false
+   },
+   "product": {
+    "specialist": "product",
+    "summary": "Olay anında loadtest namespace'inde Milvus querynode pod'u belleğinin %81'ini kullanıyordu ve yazma kesme eşiği %95 olarak belirlenmişti. Kaybedilen node yoktu, pod sağlam bir node'da çalışıyordu, yüksek bellek kullanımı alarmı tetikledi.",
+    "observations": [
+     "Milvus querynode pod belleği %81, yazma kesme eşiği %95 (alarm anı)",
+     "Milvus sağlık kontrolü için veri yok",
+     "Kaybedilen node yok, querynode pod sağlam node'da",
+     "Bellek kotası yüksek kullanım nedeniyle alarm tetiklenmiş"
+    ],
+    "evidence": [
+     {
+      "source": "product.run_check({\"name\": \"milvus_querynode_memory_quota\", \"namespace\": \"loadtest\", \"end\": \"2026-10-09T00:40:08.955000Z\"})",
+      "summary": "milvus_querynode_memory_quota [anomaly] 2026-10-09 00:10:08Z → 2026-10-09 00:40:08Z: loadtest: querynode cus-loadtest-milvus-querynode-0-5b56546787-lrklt belleği %81; yazma kesme eşiği %95\nkategoriler: database\nsorgu: `max by (pod) (container_memory_working_set_bytes{namespace=\"loadtest\",container=\"querynode\"}) / max by (pod) (kube_pod_container_resource_limits{namespace=\"loadtest\",container=\"querynode\",resource=\"memory\"})\nmax(milvus_rootcoord_qn_mem_high_water_level{job=\"milvus-metrics\",k8s_namespace_name=\"loadtest\"})\nsum(increase(milvus_rootcoord_force_deny_writing_counter_total{job=\"milvus-metrics\",k8s_namespace_name=\"loadtest\"}[1800s]))`\nveri: {\"high_water_level\": 0.95, \"deny_writing_increase\": 0.0, \"querynodes\": [{\"pod\": \"cus-loadtest-milvus-querynode-0-5b56546787-lrklt\", \"ratio\": 0.8"
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_health\", \"namespace\": \"loadtest\", \"end\": \"2026-10-09T00:40:08.955000Z\"})",
+      "summary": "milvus_health [no_data] 2026-10-09 00:10:08Z → 2026-10-09 00:40:08Z: loadtest: Milvus kaynağı yok\nkategoriler: database, vendor_external\nsorgu: `list milvus.io/Milvus namespace=loadtest`"
+     },
+     {
+      "source": "product.topology({\"namespace\": \"loadtest\", \"at\": \"2026-10-09T00:40:08.955000Z\"})",
+      "summary": "loadtest yerleşimi @ 2026-10-09 00:40:08Z: olaydan önceki 15 dk'da görülen pod'lar; 'sonra' = olaydan sonraki 2 saat\n\n## vectordb\n\n| bileşen | pod | node | kaybedilen node'da | bağlı olduğu |\n|---|---|---|---|---|\n| etcd | 3 | gke-cluster-pool-a-g3re, gke-cluster-pool-a-nx71 | evet: gke-cluster-pool-a-nx71 | - |\n| mixcoord | 1 | gke-cluster-pool-a-g3re |  | etcd |\n| proxy | 1 | gke-cluster-pool-a-g3re |  | etcd, mixcoord, querynode, streamingnode |\n| querynode | 1 | gke-cluster-pool-a-g3re |  | etcd, mixcoord, object_storage |\n| streamingnode | 1 | gke-cluster-pool-a-g3re |  | etcd, mixcoord, ob"
+     },
+     {
+      "source": "product.run_check({\"name\": \"milvus_querynode_memory_quota\", \"namespace\": \"loadtest\", \"minutes\": 30, \"end\": \"2026-10-09T00:40:08.955000Z\"})",
+      "summary": "milvus_querynode_memory_quota [anomaly] 2026-10-09 00:10:08Z → 2026-10-09 00:40:08Z: loadtest: querynode cus-loadtest-milvus-querynode-0-5b56546787-lrklt belleği %81; yazma kesme eşiği %95\nkategoriler: database\nsorgu: `max by (pod) (container_memory_working_set_bytes{namespace=\"loadtest\",container=\"querynode\"}) / max by (pod) (kube_pod_container_resource_limits{namespace=\"loadtest\",container=\"querynode\",resource=\"memory\"})\nmax(milvus_rootcoord_qn_mem_high_water_level{job=\"milvus-metrics\",k8s_namespace_name=\"loadtest\"})\nsum(increase(milvus_rootcoord_force_deny_writing_counter_total{job=\"milvus-metrics\",k8s_namespace_name=\"loadtest\"}[1800s]))`\nveri: {\"high_water_level\": 0.95, \"deny_writing_increase\": 0.0, \"querynodes\": [{\"pod\": \"cus-loadtest-milvus-querynode-0-5b56546787-lrklt\", \"ratio\": 0.8"
+     }
+    ],
+    "suspects": [
+     "capacity_performance"
+    ],
+    "confidence": "high",
+    "error": null,
+    "tools_used": [
+     "product.run_check",
+     "product.run_check",
+     "product.topology",
+     "product.run_check"
+    ],
+    "deep_dive": false
+   }
+  },
+  "errors": [],
+  "budget": {
+   "used": 21885,
+   "by_scope": {
+    "metrics": 4920,
+    "product": 12399
+   },
+   "wrap_up": false,
+   "exhausted": false,
+   "rejected": 0,
+   "truncated_tool_results": 0
+  },
+  "label": "database",
+  "seconds": 44.1
+ }
+}

@@ -1,0 +1,14 @@
+id: 02-oom
+title: Bellek limiti düşürüldü — OOMKilled
+namespace: sre-lab
+tool: helm
+verify: lab
+expected:
+  alerts: [LabContainerOOMKilled]
+  alert_within_min: 3
+  category: capacity_performance
+  root_cause: Bellek limiti (8Mi) uygulamanın ihtiyacının altında; konteyner OOMKilled ile sonlanıyor.
+  evidence: [pod_restarts, recent_rollouts]
+notes: >-
+  Plan "memory limit düşürülür" diyor; Litmus gerekmez. Konteyner art arda öldüğü için LabPodCrashLooping
+  da çalabilir; ikisi aynı olayın belirtisi.

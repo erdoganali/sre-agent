@@ -1,0 +1,16 @@
+# litmus-scope — GKE (ADR-026). Deneyler yalnızca bu namespace'lerde çalışır.
+# Yeni namespace eklemek: listeye yaz, `make litmus-scope`.
+namespaces:
+  - sre-lab
+  - loadtest
+  - pilot   # senaryo 12 (etcd çoğunluk kaybı); kullanıcı onayı 2026-10-18
+
+# Gerçek tenant ve altyapı namespace'leri: listeye yazılırsa kurulum durur.
+forbiddenNamespaces:
+  - acme
+  - vectordb
+  - vectordb-iam
+  - kafka
+  - monitoring
+  - sre-agent
+  - kube-system

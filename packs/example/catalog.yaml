@@ -1,0 +1,37 @@
+# Failure catalog: what can break, how it looks, what catches it. The knowledge base (RAG) is
+# built from these entries. `make test` checks every link (checks, alerts, categories, metrics).
+version: 1
+title: orders-api failure catalog
+pipeline_selector: '{job="orders-api"}'
+alerts_source: packs/example/alerts.yaml
+inventory: metrics.txt
+
+areas:
+  api: HTTP API
+  db: Database
+
+entries:
+  - id: bad-rollout
+    area: api
+    title: New version returns 5xx
+    symptom: >-
+      5xx ratio rises within minutes of a rollout; pods may restart with an exception in the logs.
+    signals:
+      - {metric: http_requests_total, path: pipeline, note: "code=~\"5..\" share"}
+      - {logql: '{app="orders-api"} |= "Traceback"', path: log}
+    alerts: [ExampleErrorRateHigh]
+    checks: [example_error_rate, recent_rollouts, crash_log_exception]
+    category: application_service_bug
+
+  - id: db-pool-exhausted
+    area: db
+    title: Postgres connection pool exhausted
+    symptom: >-
+      Requests time out waiting for a connection; 5xx ratio rises with no rollout. Active connections sit
+      at the pool limit.
+    signals:
+      - {metric: pg_stat_activity_count, path: source, note: "at max_connections"}
+    threshold: "50 connections per API pod"
+    alerts: [ExampleErrorRateHigh]
+    checks: [example_error_rate]
+    category: database

@@ -1,0 +1,32 @@
+{
+ "scenario": "05-pending",
+ "title": "Karşılanamayacak kaynak isteği — Pending",
+ "inject_ok": true,
+ "started_at": "2026-10-08T20:58:49.061311+00:00",
+ "alerts_fired_min": {
+  "LabPodUnschedulable": 5.8
+ },
+ "report_id": "6acd19044a18",
+ "report_min": 6.1,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   sre-lab temel hâlde: docker.io/library/python:3.14.7-slim, message=merhaba, 1/1 hazır, deney yok",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "pending_pods",
+   "recent_rollouts"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "helm_release_changes",
+   "manual_changes"
+  ]
+ }
+}

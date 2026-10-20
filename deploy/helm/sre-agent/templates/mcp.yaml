@@ -1,0 +1,104 @@
+{{- if .Values.mcp.enabled }}
+{{- range $name := .Values.mcp.servers }}
+{{- $full := printf "%s-mcp-%s" $.Release.Name $name }}
+{{- $sa := printf "sre-agent-mcp-%s" $name }}
+{{- $kube := has $name $.Values.mcp.kubeAccess }}
+{{- $sel := dict "app.kubernetes.io/name" "sre-agent-mcp" "app.kubernetes.io/instance" $full }}
+{{- if not $kube }}
+---
+# Kubernetes'e erişmeyen sunucu: rolsüz ServiceAccount, token bağlanmaz
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+automountServiceAccountToken: false
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $full }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-agent
+    app.kubernetes.io/component: mcp-{{ $name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- toYaml $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml $sel | nindent 8 }}
+        app.kubernetes.io/part-of: sre-agent
+        app.kubernetes.io/component: mcp-{{ $name }}
+      annotations:
+        checksum/config: {{ $.Values.config | sha256sum }}
+    spec:
+      serviceAccountName: {{ $sa }}
+      automountServiceAccountToken: {{ $kube }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mcp
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: [python, -m, sre_agent.mcp]
+          args:
+            - {{ $name }}
+            - --config=/etc/sre-agent/config.yaml
+            - --base=/app
+            - --port=8080
+            - --allow-host={{ $full }}
+            - --allow-host={{ $full }}.{{ $.Release.Namespace }}
+            - --allow-host={{ $full }}.{{ $.Release.Namespace }}.svc
+            - --allow-host={{ $full }}.{{ $.Release.Namespace }}.svc.cluster.local
+          {{- if eq $name "product" }}
+          # knowledge_search aracı (ADR-034); diğer sunucular gizli değer görmez
+          env:
+            - name: KNOWLEDGE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ $.Values.knowledgeSecret }}, key: KNOWLEDGE_TOKEN, optional: true}
+          {{- end }}
+          ports:
+            - {name: mcp, containerPort: 8080}
+          readinessProbe:
+            tcpSocket: {port: mcp}
+          livenessProbe:
+            tcpSocket: {port: mcp}
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            {{- toYaml $.Values.mcp.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/sre-agent, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap: {name: {{ $.Release.Name }}}
+        - name: tmp
+          emptyDir: {sizeLimit: 16Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $full }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-agent
+spec:
+  selector:
+    {{- toYaml $sel | nindent 4 }}
+  ports:
+    - {name: mcp, port: 8080, targetPort: mcp}
+{{- end }}
+{{- end }}

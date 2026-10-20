@@ -1,0 +1,12 @@
+id: 01-crashloop
+title: Hatalı build — uygulama açılışta çöküyor (CrashLoopBackOff)
+namespace: sre-lab
+tool: helm
+verify: lab
+expected:
+  alerts: [LabPodCrashLooping]
+  alert_within_min: 5
+  category: application_service_bug
+  root_cause: Yeni sürüm açılışta RuntimeError fırlatıyor; konteyner sürekli yeniden başlıyor.
+  evidence: [crash_log_exception, pod_restarts, recent_rollouts]
+notes: Uygulamaya STARTUP_ERROR verilir (chart değeri startupError); logda traceback görünür.

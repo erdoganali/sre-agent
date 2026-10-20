@@ -1,0 +1,12 @@
+id: 03-image-pull
+title: Yanlış image etiketi — ImagePullBackOff
+namespace: sre-lab
+tool: helm
+verify: lab
+expected:
+  alerts: [LabContainerWaiting]
+  alert_within_min: 4
+  category: application_release
+  root_cause: Sürüm, registry'de olmayan bir image etiketiyle dağıtıldı.
+  evidence: [recent_rollouts]
+notes: Eski pod çalışmaya devam eder (rolling update); yeni pod image'ı çekemez.

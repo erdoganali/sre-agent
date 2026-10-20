@@ -1,0 +1,52 @@
+{{- $sel := printf "namespace=%q,pod=~%q" .Values.namespace .Values.podRegex -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sre-lab-alerts
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+spec:
+  groups:
+    - name: sre-lab
+      rules:
+        - alert: LabPodCrashLooping
+          expr: |
+            max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{ {{- $sel }},reason="CrashLoopBackOff"}) == 1
+          for: {{ .Values.for.crashLoop }}
+          labels: {severity: warning, {{- range $k, $v := .Values.labels }} {{ $k }}: {{ $v | quote }}{{ end }} }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} ({{ "{{ $labels.container }}" }}) CrashLoopBackOff"
+
+        - alert: LabContainerWaiting
+          expr: |
+            max by (namespace, pod, container, reason) (kube_pod_container_status_waiting_reason{ {{- $sel }},reason=~"ImagePullBackOff|ErrImagePull|InvalidImageName|CreateContainerConfigError|CreateContainerError"}) == 1
+          for: {{ .Values.for.waiting }}
+          labels: {severity: warning, {{- range $k, $v := .Values.labels }} {{ $k }}: {{ $v | quote }}{{ end }} }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} başlayamıyor: {{ "{{ $labels.reason }}" }}"
+
+        - alert: LabPodNotReady
+          expr: |
+            max by (namespace, pod) (kube_pod_status_ready{ {{- $sel }},condition="false"}) == 1
+              and on (namespace, pod) max by (namespace, pod) (kube_pod_status_phase{ {{- $sel }},phase="Running"}) == 1
+          for: {{ .Values.for.notReady }}
+          labels: {severity: warning, {{- range $k, $v := .Values.labels }} {{ $k }}: {{ $v | quote }}{{ end }} }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} çalışıyor ama hazır değil"
+
+        - alert: LabPodUnschedulable
+          expr: |
+            max by (namespace, pod) (kube_pod_status_unschedulable{ {{- $sel }}}) == 1
+          for: {{ .Values.for.unschedulable }}
+          labels: {severity: warning, {{- range $k, $v := .Values.labels }} {{ $k }}: {{ $v | quote }}{{ end }} }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} hiçbir node'a yerleştirilemiyor (Pending)"
+
+        - alert: LabContainerOOMKilled
+          expr: |
+            (max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{ {{- $sel }}}[5m])) > 0)
+              and on (namespace, pod, container)
+            (max by (namespace, pod, container) (kube_pod_container_status_last_terminated_reason{ {{- $sel }},reason="OOMKilled"}) == 1)
+          labels: {severity: warning, {{- range $k, $v := .Values.labels }} {{ $k }}: {{ $v | quote }}{{ end }} }
+          annotations:
+            summary: "{{ "{{ $labels.pod }}" }} ({{ "{{ $labels.container }}" }}) bellek limitini aştı (OOMKilled)"

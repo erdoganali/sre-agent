@@ -1,0 +1,33 @@
+{
+ "scenario": "01-crashloop",
+ "title": "Hatalı build — uygulama açılışta çöküyor (CrashLoopBackOff)",
+ "inject_ok": true,
+ "started_at": "2026-10-08T19:51:40.734288+00:00",
+ "alerts_fired_min": {
+  "LabPodCrashLooping": 2.9
+ },
+ "report_id": "9f19e14f0587",
+ "report_min": 3.3,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   sre-lab temel hâlde: docker.io/library/python:3.14.7-slim, message=merhaba, 1/1 hazır, deney yok",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "crash_log_exception",
+   "pod_restarts",
+   "recent_rollouts"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "golden_signals_baseline",
+   "helm_release_changes"
+  ]
+ }
+}

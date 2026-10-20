@@ -1,0 +1,2 @@
+# Grafana sidecar'ı (kube-prometheus-stack) grafana_dashboard=1 etiketli ConfigMap'leri yükler.
+folder: SRE Platform

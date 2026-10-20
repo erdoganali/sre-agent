@@ -1,0 +1,85 @@
+# Model kataloğu (ADR-027).
+# Her değer ${ORTAM_DEGISKENI:varsayilan} ile ezilebilir; adres değişince ya da araya bir
+# gateway girince yalnızca ortam değişkeni / bu dosya değişir, kod değişmez.
+
+roles:
+  # Karar noktaları (T2.5): kısa, tipli cevap; düşünme kapalı
+  decision:
+    model: "${SRE_DECISION_MODEL:qwen3.6-35b}"
+    reasoning_effort: none
+    max_tokens: 512
+    sampling_params: {temperature: 0.0}
+  # Uzmanlar (Faz 3): araç döngüsü
+  specialist:
+    model: "${SRE_SPECIALIST_MODEL:qwen3.6-35b}"
+    reasoning_effort: low
+    max_tokens: 4096
+  # Correlate / evaluate / synthesize (Faz 3)
+  synthesize:
+    model: "${SRE_SYNTHESIZE_MODEL:qwen3.6-35b}"
+    reasoning_effort: medium
+    max_tokens: 8192
+
+models:
+  qwen3.6-35b:
+    name: "${QWEN3_6_35B_MODEL_NAME:qwen3.6-35b}"
+    url: "${QWEN3_6_35B_URL:http://vllm.example.internal:8520/v1/chat/completions}"
+    max_context_tokens: 260000  # sunucu max_model_len 262144
+    tokenizer_dir_name: qwen3.6-35b
+    headers:
+      Authorization: "${QWEN3_6_35B_AUTH:}"  # gateway anahtar isterse Secret'tan; boşsa gönderilmez
+    # vLLM low/medium/high kabul eder; daha yükseği bir alta indirilir. Düşünme anahtarla açılır/kapanır.
+    supported_reasoning_efforts: [low, medium, high]
+    send_reasoning_effort: false
+    thinking_switch: chat_template_kwargs.enable_thinking
+    sampling_params:
+      temperature: 1.0
+      top_p: 0.95
+      top_k: 20
+      min_p: 0.0
+      presence_penalty: 1.5
+
+  # Küçük karar modeli adayı (T2.4'te ölçülecek); bir rol buna yönlendirilmedikçe kullanılmaz.
+  gpt-oss-20b:
+    name: "${GPT_OSS_20B_MODEL_NAME:gpt-oss-20b}"
+    url: "${GPT_OSS_20B_URL:http://vllm.example.internal:8502/v1/chat/completions}"
+    max_context_tokens: 24000  # sunucu max_model_len 24680
+    tokenizer_dir_name: gpt-oss-120b
+    headers:
+      Authorization: "${GPT_OSS_20B_AUTH:}"
+    supported_reasoning_efforts: [low, medium, high]
+    sampling_params:
+      temperature: 1.0
+      top_p: 1.0
+
+  # Gateway (llm-gateway.example.internal) üzerinden Azure OpenAI modelleri — ADR-032: yalnız geliştirme ve
+  # ölçüm ortamında, on-prem modeller kapalıyken. Hedef (air-gapped) kurulumda kullanılmaz.
+  gpt-4o-mini:
+    name: gpt-4o-mini
+    url: "${EAG_URL:http://llm-gateway.example.internal/v1/chat/completions}"
+    max_context_tokens: 128000
+    retries: 4  # Azure dakikalık token kotası: 429'da Retry-After kadar beklenir
+    max_concurrency: 2  # paralel specialist'ler kotayı aynı anda tüketmesin
+    headers:
+      Authorization: "${EAG_AUTH:}"
+    sampling_params: {temperature: 0.0}
+
+  gpt-4.1-mini:
+    name: gpt-4.1-mini
+    url: "${EAG_URL:http://llm-gateway.example.internal/v1/chat/completions}"
+    max_context_tokens: 128000
+    retries: 4  # Azure dakikalık token kotası: 429'da Retry-After kadar beklenir
+    max_concurrency: 2  # paralel specialist'ler kotayı aynı anda tüketmesin
+    headers:
+      Authorization: "${EAG_AUTH:}"
+    sampling_params: {temperature: 0.0}
+
+  gpt-5.4-nano:
+    name: gpt-5.4-nano
+    url: "${EAG_URL:http://llm-gateway.example.internal/v1/chat/completions}"
+    max_context_tokens: 128000
+    retries: 4  # Azure dakikalık token kotası: 429'da Retry-After kadar beklenir
+    max_concurrency: 2  # paralel specialist'ler kotayı aynı anda tüketmesin
+    headers:
+      Authorization: "${EAG_AUTH:}"
+    supported_reasoning_efforts: [low, medium, high]

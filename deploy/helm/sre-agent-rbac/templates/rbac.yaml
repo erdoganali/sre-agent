@@ -1,0 +1,97 @@
+{{- $verbs := list "get" "list" "watch" -}}
+{{- /* Küme kapsamlı kaynaklar: namespace kipinde Role'e yazılamaz */ -}}
+{{- $clusterScoped := list "nodes" "namespaces" "persistentvolumes" "storageclasses" -}}
+{{- $rules := concat .Values.rules .Values.extraRules -}}
+{{- range $rules }}
+{{- if or (has "*" .resources) (has "secrets" .resources) (has "*" .apiGroups) }}
+{{- fail (printf "read-only rol secrets veya '*' içeremez: %v" .) }}
+{{- end }}
+{{- end }}
+{{- if not (has .Values.scope (list "cluster" "namespaces")) }}
+{{- fail (printf "scope cluster ya da namespaces olmalı: %v" .Values.scope) }}
+{{- end }}
+{{- if and (eq .Values.scope "namespaces") (not .Values.namespaces) }}
+{{- fail "scope=namespaces için namespaces listesi boş olamaz" }}
+{{- end }}
+{{- $accounts := prepend .Values.mcpServiceAccounts .Values.serviceAccountName }}
+{{- range $accounts }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ . }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+automountServiceAccountToken: false
+{{- end }}
+{{- if eq .Values.scope "cluster" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+rules:
+  {{- range $rules }}
+  - apiGroups: {{ toJson .apiGroups }}
+    resources: {{ toJson .resources }}
+    verbs: {{ toJson $verbs }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.serviceAccountName }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.serviceAccountName }}
+subjects:
+  {{- range $accounts }}
+  - kind: ServiceAccount
+    name: {{ . }}
+    namespace: {{ $.Release.Namespace }}
+  {{- end }}
+{{- else }}
+{{- range $ns := .Values.namespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $.Values.serviceAccountName }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+rules:
+  {{- range $rules }}
+  {{- $res := list }}
+  {{- range .resources }}{{ if not (has . $clusterScoped) }}{{ $res = append $res . }}{{ end }}{{ end }}
+  {{- if $res }}
+  - apiGroups: {{ toJson .apiGroups }}
+    resources: {{ toJson $res }}
+    verbs: {{ toJson $verbs }}
+  {{- end }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $.Values.serviceAccountName }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $.Values.serviceAccountName }}
+subjects:
+  {{- range $accounts }}
+  - kind: ServiceAccount
+    name: {{ . }}
+    namespace: {{ $.Release.Namespace }}
+  {{- end }}
+{{- end }}
+{{- end }}

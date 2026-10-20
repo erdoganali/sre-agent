@@ -1,0 +1,68 @@
+# VectorDB (Milvus 2.6, streaming mimarisi) topology'si: bileşenler, pod adı eşlemesi, bağımlılıklar.
+# Pod adları: cus-<tenant>-etcd-<n>, cus-<tenant>-milvus-<bileşen>-...  (milvus-operator)
+components:
+  etcd:
+    pods: "-etcd-[0-9]+$"
+    role: meta veri deposu (koleksiyon, segment, oturum, 2.6'da WAL metadata'sı); çoğunluk kaybında Milvus durur
+    depends: [milvus_operator]
+  mixcoord:
+    pods: "-milvus-mixcoord-"
+    role: koordinatörlerin tek süreçte birleşimi (root, data, query, streaming)
+    depends: [etcd, milvus_operator]
+  proxy:
+    pods: "-milvus-proxy-"
+    role: >-
+      istemci girişi; aramayı querynode'a, yazmayı streamingnode'a yönlendirir. Aynı pod'da access-log sidecar'ı
+      (emptyDir 384Mi): sidecar çökerse ya da disk dolarsa pod hazır olmaz, veri yolu kesilir
+    depends: [etcd, mixcoord, querynode, streamingnode]
+  querynode:
+    pods: "-milvus-querynode-"
+    role: arama; segmentleri object storage'tan yükler
+    depends: [etcd, mixcoord, object_storage]
+  streamingnode:
+    pods: "-milvus-streamingnode-"
+    role: yazma yolu (WAL) ve büyüyen segmentler
+    depends: [etcd, mixcoord, object_storage]
+  datanode:
+    pods: "-milvus-datanode-"
+    role: flush, compaction, index
+    depends: [etcd, mixcoord, object_storage]
+  attu:
+    pods: "-milvus-attu-"
+    role: yönetim arayüzü
+    depends: [proxy]
+  metrics-agent:
+    pods: "-milvus-metrics-agent-"
+    role: bütün Milvus pod'larının metriklerini okur, telemetri gateway'ine gönderir (OTLP)
+    depends: [telemetry_gateway]
+
+externals:
+  object_storage:
+    role: S3 uyumlu nesne deposu (bucket aşağıda, Milvus CR'ından); 2.6'da WAL verisi de burada
+  telemetry_gateway:
+    role: platformun OTel toplayıcısı (vectordb namespace'i) → Kafka; tek nokta, kuyruk dolunca düşürür
+  milvus_operator:
+    role: Milvus bileşenlerini kurar ve onarır (bütün tenant'lar için tek operatör)
+  tenant_operator:
+    role: tenant yaşam döngüsü, sırların aynalanması, parola, yedek; milvus-operator'ın izleme listesi
+
+# Canlı kaynak: Milvus CR'ından YALNIZ bu alanlar okunur (CR'da rootPassword var; config'in geri
+# kalanı ve secretRef okunmaz).
+live:
+  group: milvus.io
+  kind: Milvus
+  fields:
+    - metadata.name
+    - status.status
+    - spec.components.image
+    - spec.components.*.replicas
+    - spec.config.minio.bucketName
+    - spec.config.minio.rootPath
+    - spec.dependencies.msgStreamType
+    - spec.dependencies.etcd.endpoints
+    - spec.dependencies.etcd.external
+    - spec.dependencies.storage.type
+    - spec.dependencies.storage.endpoint
+    - spec.dependencies.storage.external
+    - status.componentsDeployStatus.*.status.readyReplicas
+    - status.componentsDeployStatus.*.status.replicas

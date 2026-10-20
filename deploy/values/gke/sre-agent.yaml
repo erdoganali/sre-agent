@@ -1,0 +1,15 @@
+# sre-agent chart — GKE
+ingress:
+  enabled: true
+  host: sre-agent.example.internal
+  # Kimlik doğrulama yok (kullanıcı kararı, 2026-09-27): raporlar ve etiket formu ingress'e erişen
+  # herkese açık. Gerekirse: basicAuthSecret: sre-agent-basic-auth (make agent-auth) ya da IP kısıtı.
+  basicAuthSecret: ""
+
+# Model span'ları GKE'deki Tempo'ya (OTLP/HTTP)
+otel:
+  endpoint: http://tempo.monitoring:4318
+
+# MCP sunucuları (T3.3, ADR-030)
+mcp:
+  enabled: true

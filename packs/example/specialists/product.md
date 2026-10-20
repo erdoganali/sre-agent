@@ -1,0 +1,2 @@
+- 5xx ratio up right after a rollout: compare with `recent_rollouts`; the new version is the first suspect.
+- 5xx ratio up with no rollout: check Postgres connections and the payment provider before blaming the code.

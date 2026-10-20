@@ -1,0 +1,18 @@
+# Resmi Python image'ı; uygulama tek satırlık bir HTTP sunucusu.
+# Senaryolar tag'i değiştirir (ör. 3.14.7-slim ↔ 3.14.6-slim).
+image:
+  repository: docker.io/library/python
+  tag: "3.14.7-slim"
+
+replicas: 1
+
+# Hatalı build senaryosu (scenarios/01-crashloop): boş değilse uygulama açılışta bu mesajla
+# istisna fırlatır ve çıkar (CrashLoopBackOff, logda traceback).
+startupError: ""
+
+# ConfigMap'teki değer; senaryolar `kubectl edit` ile değiştirir.
+message: "merhaba"
+
+resources:
+  requests: {cpu: 10m, memory: 32Mi}
+  limits: {memory: 64Mi}

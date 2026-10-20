@@ -1,0 +1,25 @@
+# tools/milvus-load imajı (make load-image). Yalnızca test tenant'ında kurulur.
+image:
+  repository: registry.example.com/sre-agent-apps/milvus-load
+  tag: ""
+
+# Bağlantı Secret'ı (uri, username, password); repoya girmez (make load-secret).
+secret: milvus-load
+
+collection: sre_load
+dim: 768
+rows: 2100000   # HNSW ~3,2 KB/satır: 2,1 M ≈ 6,8 GiB ≈ querynode limitinin (8 GiB) %83
+batch: 2000
+# Veri bu kadar collection'a bölünür (collection başına ≤ ~500 MB; aksi hâlde compaction sonrası
+# HNSW derlemesi datanode'u OOMKilled eder). 13 x ~162K = 2,1 M.
+shards: 13
+index: HNSW   # FLAT RAM kullanmaz (Milvus 2.6 ham vektörü mmap ile okur)
+
+# Sürekli küçük yazma + arama (object storage trafiği; senaryo 10). make load-traffic-on / -off
+traffic:
+  enabled: false
+  intervalSeconds: 1
+
+resources:
+  requests: {cpu: 100m, memory: 256Mi}
+  limits: {memory: 1Gi}

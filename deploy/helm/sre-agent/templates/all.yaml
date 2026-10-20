@@ -1,0 +1,106 @@
+{{- $sel := dict "app.kubernetes.io/name" "sre-agent" "app.kubernetes.io/instance" .Release.Name -}}
+{{- if not .Values.image.tag }}{{ fail "image.tag zorunlu" }}{{ end -}}
+{{- if not .Values.config }}{{ fail "config zorunlu (config/<ortam>.yaml)" }}{{ end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-agent
+data:
+  config.yaml: |
+    {{- .Values.config | nindent 4 }}
+  {{- with .Values.models }}
+  models.yaml: |
+    {{- . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-agent
+spec:
+  replicas: 1  # raporlar bellekte (ADR-022); tek replika
+  selector:
+    matchLabels:
+      {{- toYaml $sel | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- toYaml $sel | nindent 8 }}
+        app.kubernetes.io/part-of: sre-agent
+      annotations:
+        checksum/config: {{ print .Values.config .Values.models (toJson .Values.modelEnv) | sha256sum }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      # Kubernetes'i cluster içinden read-only SA ile okur; token burada bağlanır.
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sre-agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: 8080}
+          env:
+            - name: GRAFANA_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.grafanaTokenSecret }}, key: token, optional: true}
+            # Kalıcı rapor deposu (ADR-023); Secret yoksa raporlar yalnızca bellekte
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.databaseSecret }}, key: database-url, optional: true}
+            # Bilgi tabanı kimliği (ADR-034)
+            - name: KNOWLEDGE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: {{ .Values.knowledgeSecret }}, key: KNOWLEDGE_TOKEN, optional: true}
+            # Model kataloğu ezmeleri (ADR-027): adres/model adı values'tan, anahtarlar Secret'tan
+            {{- range $k, $v := .Values.modelEnv }}
+            - {name: {{ $k }}, value: {{ $v | quote }}}
+            {{- end }}
+            {{- with .Values.otel.endpoint }}
+            # Model çağrılarının OTel GenAI span'ları (T2.3)
+            - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: {{ . | quote }}}
+            - {name: OTEL_SERVICE_NAME, value: sre-agent}
+            {{- end }}
+          envFrom:
+            - secretRef: {name: {{ .Values.modelSecret }}, optional: true}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: config, mountPath: /etc/sre-agent, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          configMap: {name: {{ .Release.Name }}}
+        - name: tmp
+          emptyDir: {sizeLimit: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- toYaml $sel | nindent 4 }}
+    app.kubernetes.io/part-of: sre-agent
+spec:
+  selector:
+    {{- toYaml $sel | nindent 4 }}
+  ports:
+    - {name: http, port: 8080, targetPort: http}

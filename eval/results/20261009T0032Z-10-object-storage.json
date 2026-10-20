@@ -1,0 +1,29 @@
+{
+ "scenario": "10-object-storage",
+ "title": "Object storage (GCS) erişilemiyor (loadtest)",
+ "inject_ok": true,
+ "started_at": "2026-10-09T00:46:22.744241+00:00",
+ "alerts_fired_min": {},
+ "report_id": null,
+ "report_min": null,
+ "blind_spots": [],
+ "labeled": false,
+ "cleanup_ok": true,
+ "cleanup": "OK   loadtest temel hâlde: deney yok, trafik kapalı, veri bellekte değil, Milvus pod'ları hazır",
+ "outcome": {
+  "verdict": "kaldı",
+  "reasons": [
+   "alarm çalmadı: MilvusObjectStorageErrors",
+   "rapor yazılmadı"
+  ],
+  "alerts_missing": [
+   "MilvusObjectStorageErrors"
+  ],
+  "evidence_found": [],
+  "evidence_missing": [
+   "milvus_object_storage"
+  ],
+  "category_found": false,
+  "noise": []
+ }
+}

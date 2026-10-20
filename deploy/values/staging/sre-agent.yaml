@@ -1,0 +1,26 @@
+# sre-agent chart — staging (example-project example-gke)
+ingress:
+  enabled: true
+  host: sre-agent.example.internal
+  # Kimlik doğrulama yok (kullanıcı kararı, 2026-09-27): raporlar ve etiket formu ingress'e erişen
+  # herkese açık. Gerekirse: basicAuthSecret: sre-agent-basic-auth (make agent-auth) ya da IP kısıtı.
+  basicAuthSecret: ""
+
+# Model span'ları kümedeki Tempo'ya (OTLP/HTTP)
+otel:
+  endpoint: http://tempo.monitoring:4318
+
+# Model: gateway (llm-gateway.example.internal) üzerinden; anahtar sre-agent-models Secret'ında (EAG_AUTH,
+# QWEN3_6_35B_AUTH, GPT_OSS_20B_AUTH). On-prem modeller (qwen, gpt-oss) akşam kapalı olduğu için
+# roller gateway'deki Azure modelinde (ADR-032; yalnız bu geliştirme/ölçüm ortamında).
+modelEnv:
+  EAG_URL: http://llm-gateway.example.internal/v1/chat/completions
+  QWEN3_6_35B_URL: http://llm-gateway.example.internal/v1/chat/completions
+  GPT_OSS_20B_URL: http://llm-gateway.example.internal/v1/chat/completions
+  SRE_DECISION_MODEL: gpt-4.1-mini
+  SRE_SPECIALIST_MODEL: gpt-4.1-mini
+  SRE_SYNTHESIZE_MODEL: gpt-4.1-mini
+
+# MCP sunucuları (T3.3, ADR-030)
+mcp:
+  enabled: true

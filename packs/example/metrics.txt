@@ -1,0 +1,3 @@
+# Metric inventory: name<TAB>flags (source, pipeline, direct)
+http_requests_total	source,pipeline
+pg_stat_activity_count	source

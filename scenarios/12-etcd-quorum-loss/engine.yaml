@@ -1,0 +1,27 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: s12-etcd-quorum-loss
+  namespace: pilot
+  labels: {app.kubernetes.io/part-of: sre-agent-chaos, sre-agent/scenario: 12-etcd-quorum-loss}
+spec:
+  engineState: active
+  chaosServiceAccount: litmus-admin
+  appinfo:
+    appns: pilot
+    applabel: app.kubernetes.io/instance=cus-pilot-etcd
+    appkind: statefulset
+  jobCleanUpPolicy: delete
+  experiments:
+    - name: pod-network-loss
+      spec:
+        components:
+          env:
+            # 3 üyeden 2'si (%67) aynı anda ağdan kesilir: çoğunluk kesintisiz gider
+            - {name: PODS_AFFECTED_PERC, value: "67"}
+            - {name: SEQUENCE, value: parallel}
+            - {name: NETWORK_PACKET_LOSS_PERCENTAGE, value: "100"}
+            - {name: TOTAL_CHAOS_DURATION, value: "240"}
+            - {name: TARGET_CONTAINER, value: etcd}
+            - {name: CONTAINER_RUNTIME, value: containerd}
+            - {name: SOCKET_PATH, value: /run/containerd/containerd.sock}

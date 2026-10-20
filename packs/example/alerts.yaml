@@ -1,0 +1,10 @@
+# Alert rules for this product (PrometheusRule `groups`). The catalog links its entries to these names.
+groups:
+  - name: example
+    rules:
+      - alert: ExampleErrorRateHigh
+        expr: |
+          sum by (namespace) (rate(http_requests_total{code=~"5..",job="orders-api"}[5m]))
+            / sum by (namespace) (rate(http_requests_total{job="orders-api"}[5m])) > 0.05
+        for: 5m
+        labels: {severity: critical, team: example}

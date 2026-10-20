@@ -1,0 +1,112 @@
+# telemetry-consumer (open-telemetry/opentelemetry-collector 0.173.1, contrib 0.161.0) — GKE.
+# Kafka'daki VectorDB topic'lerini okur → Prometheus, Loki, Tempo.
+# Bu bileşen ADR-015'teki telemetri hattının tüketicisidir.
+
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.161.0"
+
+# Kimlik bilgisi elle oluşturulan Secret'tan (scripts/kafka-sasl-secrets.sh).
+extraEnvs:
+  - name: KAFKA_SASL_USERNAME
+    valueFrom:
+      secretKeyRef: {name: telemetry-consumer-kafka, key: username}
+  - name: KAFKA_SASL_PASSWORD
+    valueFrom:
+      secretKeyRef: {name: telemetry-consumer-kafka, key: password}
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+# Dışarıdan veri almaz; yalnızca kendi metrik portu açık.
+ports:
+  otlp: {enabled: false}
+  otlp-http: {enabled: false}
+  jaeger-compact: {enabled: false}
+  jaeger-thrift: {enabled: false}
+  jaeger-grpc: {enabled: false}
+  zipkin: {enabled: false}
+  metrics: {enabled: true}
+
+serviceMonitor:
+  enabled: true
+
+# Chart varsayılanıyla birleşmez; yapılandırmanın tamamı burada.
+alternateConfig:
+  extensions:
+    health_check:
+      endpoint: ${env:MY_POD_IP}:13133
+
+  receivers:
+    # VectorDB gateway'inin yazdığı topic'ler (values-prod.yaml'daki adlar, otlp_json).
+    kafka:
+      brokers: ["telemetry-kafka-bootstrap.kafka.svc:9095"]
+      protocol_version: 2.0.0
+      group_id: telemetry-consumer
+      tls:
+        insecure_skip_verify: true
+      auth:
+        sasl:
+          username: ${env:KAFKA_SASL_USERNAME}
+          password: ${env:KAFKA_SASL_PASSWORD}
+          mechanism: PLAIN
+      logs:
+        topics: [vectordb_auditlog, vectordb_tenant_health, vectordb_milvus_accesslog]
+        encoding: otlp_json
+      metrics:
+        topics: [vectordb_milvus_metrics]
+        encoding: otlp_json
+      traces:
+        topics: [vectordb_traces]
+        encoding: otlp_json
+
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+
+  exporters:
+    prometheusremotewrite:
+      endpoint: http://monitoring-kube-prometheus-prometheus.monitoring:9090/api/v1/write
+      # Kaynak öznitelikleri (tenant, service.name…) metrik label'ı olur.
+      resource_to_telemetry_conversion:
+        enabled: true
+    otlphttp/loki:
+      endpoint: http://loki.monitoring:3100/otlp
+    otlp/tempo:
+      endpoint: tempo.monitoring:4317
+      tls:
+        insecure: true
+
+  service:
+    telemetry:
+      metrics:
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: ${env:MY_POD_IP}
+                  port: 8888
+    extensions: [health_check]
+    pipelines:
+      logs:
+        receivers: [kafka]
+        processors: [memory_limiter, batch]
+        exporters: [otlphttp/loki]
+      metrics:
+        receivers: [kafka]
+        processors: [memory_limiter, batch]
+        exporters: [prometheusremotewrite]
+      traces:
+        receivers: [kafka]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]

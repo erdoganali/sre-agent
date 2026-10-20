@@ -1,0 +1,15 @@
+{{- range $path, $_ := .Files.Glob "files/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-{{ base $path | trimSuffix ".json" }}
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: sre-agent
+  annotations:
+    grafana_folder: {{ $.Values.folder | quote }}
+data:
+  {{ base $path }}: |
+    {{- $.Files.Get $path | nindent 4 }}
+{{- end }}

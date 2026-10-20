@@ -1,0 +1,30 @@
+# Example domain pack: a small HTTP API ("orders-api") and its Postgres database.
+# Copy this directory to start a pack for your own product; see docs/packs.md.
+name: example
+version: 0.1.0
+description: Example pack (orders-api); template for new products
+module: example_pack
+
+# Alert name (regex, full match) → checks to run. "@core" adds every core check.
+alert_routes:
+  ExampleErrorRateHigh: [example_error_rate, pod_restarts, recent_rollouts, crash_log_exception]
+  "ExamplePod(Restarting|CrashLooping)": ["@core", example_error_rate]
+
+# Alertmanager must route alerts matching these to sre-agent (deploy/values/<env>/...).
+alert_matchers:
+  - 'team="example"'
+
+# Telemetry freshness: age of the newest sample for the alert's namespace ({ns}).
+# PromQL braces are doubled.
+freshness:
+  - name: example-telemetry
+    query: 'time() - max(timestamp(http_requests_total{{namespace="{ns}"}}))'
+    max_age_s: 300
+
+# What the core categories mean for this product (shown on the labeling form).
+category_notes:
+  application_service_bug: "orders-api: 5xx ratio rises without a deploy or a dependency failure."
+  database: "orders-api: Postgres connection pool exhausted or slow queries."
+
+# Names the model may use for the product specialist.
+specialist_aliases: [orders-api, orders]

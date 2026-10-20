@@ -1,0 +1,22 @@
+id: 06-milvus-memory
+title: Milvus querynode belleği yükseliyor (loadtest)
+namespace: loadtest
+tool: milvus-load
+verify: loadtest
+expected:
+  alerts: [MilvusQueryNodeMemoryHigh]
+  alert_within_min: 10   # yükleme ~1–3 dk, alarm 5 dk bekler
+  category: database
+  root_cause: Büyük bir collection querynode belleğine yüklendi; bellek limitin ~%80'ini aştı, Milvus'un yazma kısma eşiğine (0.85) yaklaşıyor.
+  evidence: [milvus_querynode_memory_quota]
+  requires: [load]   # önce: make load-install && make load-run A=fill (sre_load collection'ı, bellekte değil)
+notes: >-
+  Gerçek veriyle: 13 collection (sre_load_00..12, 768 boyut, HNSW, toplam ~2,1 M satır) querynode belleğine
+  yüklenir (inject: load), sonra bellekten çıkarılır (cleanup: release). HNSW ~3,2 KB/satır: 2,1 M ≈ 6,8 GiB ≈
+  querynode limitinin (8 GiB) ~%83'ü; boşta ~100 MiB.
+  Bulgular (2026-10-08): (1) Milvus 2.6 ham vektörü ve FLAT index'i mmap ile diskten okur, RAM'e almaz: 1,5 M satır
+  FLAT yüklenip aranınca querynode 222 MiB'te kaldı; bellek riski veri miktarından değil index türünden gelir.
+  (2) Tek collection'da compaction segmentleri ~1 GB'a birleştirince HNSW derlemesi datanode'u (limit 2 GiB) 9+ kez
+  OOMKilled etti; bu yüzden veri collection başına ≤ ~500 MB parçalara bölündü.
+  Önceki yaklaşım (Litmus pod-memory-hog) bırakıldı: 7400 MiB ve 6600 MiB'te querynode OOMKilled oldu, bellek
+  dalgalandığı için alarm "5 dk kesintisiz" şartını sağlayamadı.

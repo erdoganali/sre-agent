@@ -1,0 +1,1251 @@
+{
+ "uid": "sre-platform",
+ "title": "SRE Platform / Telemetri hattı",
+ "tags": [
+  "sre-agent",
+  "platform"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 2,
+ "refresh": "30s",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "annotations": {
+  "list": [
+   {
+    "name": "SRE raporları",
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "iconColor": "red",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "sre-agent"
+     ],
+     "matchAny": true,
+     "limit": 200
+    }
+   },
+   {
+    "name": "Chaos deneyleri",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "enable": true,
+    "iconColor": "purple",
+    "expr": "max by (chaosresult_namespace, chaosresult_name, fault_name) (litmuschaos_awaited_experiments) > 0",
+    "titleFormat": "Chaos: {{fault_name}}",
+    "textFormat": "{{chaosresult_namespace}} / {{chaosresult_name}} (Litmus)",
+    "step": "30s"
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Özet: hat sağlıklı mı?",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Hat sağlıklı mı?",
+   "description": "**Ne gösterir:** Aşağıdaki beş sağlık koşulundan kaçının bozuk olduğu: alarm sistemi (Watchdog), tenant verisinin tazeliği, Kafka birikmesi, düşen kayıt, SRE Agent'ın ayakta olması.\n\n**Normalde:** ✅ 0 — hat sağlıklı.\n\n**Kırmızı/turuncuysa:** Kaç koşul bozuksa o sayıyı gösterir; hemen sağdaki kutulardan kırmızı olanı bul. Bakma sırası için docs/dashboard-rehberi.md.",
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 8,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "(sum(time() - sre_agent_watchdog_last_seen_timestamp_seconds) > bool 900 or vector(1)) + (max(time() - max by (k8s_namespace_name) (max_over_time(timestamp(milvus_rootcoord_timestamp{job=\"milvus-metrics\"})[6h:1m]))) > bool 600 or vector(0)) + (sum(kafka_consumergroup_lag{consumergroup=\"telemetry-consumer\"}) > bool 1000 or vector(0)) + (sum(increase({__name__=~\"otelcol_exporter_send_failed_(metric_points|log_records|spans)\",job=~\".*telemetry-consumer.*\"}[15m])) > bool 0 or vector(0)) + (sum(up{job=\"sre-agent\"}) < bool 1 or vector(1))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "✅ Her şey yolunda",
+         "color": "green"
+        }
+       }
+      },
+      {
+       "type": "range",
+       "options": {
+        "from": 1,
+        "to": 100,
+        "result": {
+         "text": "🔴 sorun var — kırmızı kutulara bak"
+        }
+       }
+      }
+     ]
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 3,
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 8,
+    "y": 1,
+    "w": 16,
+    "h": 6
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "### Bu ekran neyi cevaplar?\nVectorDB'ın telemetrisi (metrik ve log) **bize ulaşıyor mu** ve **SRE Agent çalışıyor mu**?\n\n**Veri yolu:** VectorDB gateway → **Kafka** → **telemetry-consumer** → Prometheus / Loki / Tempo → **SRE Agent** raporları\n\n**Renkler:** 🟢 normal · 🟠 dikkat · 🔴 müdahale gerekiyor. Her kutunun **ⓘ** simgesinde *ne gösterir / normalde / kırmızıysa ne yap* yazar.\nKırmızı kesikli dikey çizgiler: SRE Agent'ın rapor ürettiği anlar (üzerine gelince özeti görünür).\n\nAyrıntılı okuma rehberi: repoda `docs/dashboard-rehberi.md`."
+   }
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Alarm sistemi (Watchdog yaşı)",
+   "description": "**Ne gösterir:** Prometheus → Alertmanager → SRE Agent zincirinin canlılığı. Alertmanager 5 dakikada bir 'ben buradayım' sinyali (Watchdog) gönderir; bu, sinyalin yaşı.\n\n**Normalde:** 0–5 dakika.\n\n**Kırmızı/turuncuysa:** 15 dakikayı geçtiyse alarm zinciri kopmuş: yeni alarmlar SRE Agent'a ulaşmıyor. Prometheus ve Alertmanager pod'larına bak.",
+   "gridPos": {
+    "x": 0,
+    "y": 7,
+    "w": 5,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(time() - sre_agent_watchdog_last_seen_timestamp_seconds)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 600
+       },
+       {
+        "color": "red",
+        "value": 900
+       }
+      ]
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none"
+   }
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "SRE Agent ayakta mı?",
+   "description": "**Ne gösterir:** Rapor servisinin Prometheus tarafından ulaşılabilir olması.\n\n**Normalde:** 1 (ayakta).\n\n**Kırmızı/turuncuysa:** 0 ise servis çalışmıyor; alarmlara rapor üretilmez. sre-agent namespace'indeki pod'a bak.",
+   "gridPos": {
+    "x": 5,
+    "y": 7,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(up{job=\"sre-agent\"}) or vector(0)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "HAYIR"
+        },
+        "1": {
+         "text": "EVET"
+        }
+       }
+      }
+     ]
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none"
+   }
+  },
+  {
+   "id": 6,
+   "type": "stat",
+   "title": "Tenant verisi ne kadar eski?",
+   "description": "**Ne gösterir:** Her tenant için Milvus metriklerinin bize ulaşan son örneğinin yaşı (VectorDB gateway → Kafka → consumer yolu).\n\n**Normalde:** Birkaç saniye.\n\n**Kırmızı/turuncuysa:** 5 dk turuncu, 10 dk kırmızı (MilvusTenantTelemetryStale alarmı). Bu tenant için SRE raporları 'kör noktalı' olur. Kafka bölümüne bak: mesaj geliyor ama lag artıyorsa consumer, mesaj hiç gelmiyorsa VectorDB gateway.",
+   "gridPos": {
+    "x": 9,
+    "y": 7,
+    "w": 5,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "time() - max by (k8s_namespace_name) (max_over_time(timestamp(milvus_rootcoord_timestamp{job=\"milvus-metrics\"})[6h:1m]))",
+     "legendFormat": "{{k8s_namespace_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 300
+       },
+       {
+        "color": "red",
+        "value": 600
+       }
+      ]
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none"
+   }
+  },
+  {
+   "id": 7,
+   "type": "stat",
+   "title": "Kafka'da bekleyen mesaj (lag)",
+   "description": "**Ne gösterir:** Kafka'ya yazılmış ama telemetry-consumer'ın henüz okumadığı mesaj sayısı.\n\n**Normalde:** 0 ya da birkaç on.\n\n**Kırmızı/turuncuysa:** Sürekli artıyorsa consumer durmuş ya da yavaş. 2 saatten uzun birikirse o dönemin metrikleri Prometheus'a yazılamaz (2 sa sıra dışı penceresi) ve grafiklerde boşluk kalır.",
+   "gridPos": {
+    "x": 14,
+    "y": 7,
+    "w": 5,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "clamp_min(sum(kafka_consumergroup_lag{consumergroup=\"telemetry-consumer\"}), 0) or vector(0)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 100
+       },
+       {
+        "color": "red",
+        "value": 1000
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 8,
+   "type": "stat",
+   "title": "Düşen kayıt (15 dk)",
+   "description": "**Ne gösterir:** telemetry-consumer'ın Prometheus/Loki/Tempo'ya yazamayıp attığı kayıt sayısı.\n\n**Normalde:** 0.\n\n**Kırmızı/turuncuysa:** Prometheus/Loki/Tempo'ya erişim sorunu ya da çok eski örnek (consumer uzun süre durup geri açıldıysa). Kayıp veri geri gelmez.",
+   "gridPos": {
+    "x": 19,
+    "y": 7,
+    "w": 5,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase({__name__=~\"otelcol_exporter_send_failed_(metric_points|log_records|spans)\",job=~\".*telemetry-consumer.*\"}[15m])) or vector(0)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "area"
+   }
+  },
+  {
+   "id": 9,
+   "type": "row",
+   "title": "VectorDB alarmları",
+   "gridPos": {
+    "x": 0,
+    "y": 11,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 10,
+   "type": "timeseries",
+   "title": "Açık VectorDB alarmları",
+   "description": "**Ne gösterir:** VectorDB ve telemetri hattı için yazdığımız 16 kuraldan açık olanlar (zaman içinde).\n\n**Normalde:** Boş.\n\n**Kırmızı/turuncuysa:** Hangi alarmın açık olduğunu tablodan gör; raporu 'SRE Agent / Raporlar' dashboard'unda aç.",
+   "gridPos": {
+    "x": 0,
+    "y": 12,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (alertname) (ALERTS{team=\"vectordb\",alertstate=\"firing\"})",
+     "legendFormat": "{{alertname}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "drawStyle": "bars",
+      "fillOpacity": 60
+     }
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 11,
+   "type": "table",
+   "title": "Şu an açık VectorDB alarmları",
+   "description": "**Ne gösterir:** Açık VectorDB alarmlarının listesi.\n\n**Normalde:** Boş.\n\n**Kırmızı/turuncuysa:** Kural açıklamaları: repoda docs/alarmlar.md.",
+   "gridPos": {
+    "x": 12,
+    "y": 12,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "ALERTS{team=\"vectordb\",alertstate=\"firing\"}",
+     "legendFormat": "",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true,
+       "Value": true,
+       "__name__": true,
+       "alertstate": true,
+       "team": true
+      },
+      "indexByName": {
+       "alertname": 0,
+       "severity": 1,
+       "namespace": 2
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true
+     }
+    }
+   }
+  },
+  {
+   "id": 12,
+   "type": "row",
+   "title": "Kafka: veri bize ulaşıyor mu?",
+   "gridPos": {
+    "x": 0,
+    "y": 19,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 13,
+   "type": "timeseries",
+   "title": "VectorDB'dan Kafka'ya gelen mesaj",
+   "description": "**Ne gösterir:** VectorDB gateway'inin Kafka topic'lerine yazdığı mesaj hızı. Gateway kendi metriklerini açmıyor; çalışıp çalışmadığı buradan anlaşılır.\n\n**Normalde:** vectordb_milvus_metrics sürekli > 0; log topic'leri olay oldukça.\n\n**Kırmızı/turuncuysa:** vectordb_milvus_metrics 0'a düştüyse sorun VectorDB gateway'inde ya da Kafka bağlantısında (KafkaTopicNoIncomingData alarmı).",
+   "gridPos": {
+    "x": 0,
+    "y": 20,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (topic) (rate(kafka_topic_partition_current_offset{topic=~\"vectordb_.*\"}[5m]))",
+     "legendFormat": "{{topic}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "mps"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 14,
+   "type": "timeseries",
+   "title": "Okunmayı bekleyen mesaj (lag)",
+   "description": "**Ne gösterir:** Consumer group başına Kafka'da birikmiş mesaj.\n\n**Normalde:** 0 civarı.\n\n**Kırmızı/turuncuysa:** Artıyorsa okuyan taraf (telemetry-consumer) durmuş/yavaş (KafkaConsumerLagHigh alarmı).",
+   "gridPos": {
+    "x": 12,
+    "y": 20,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "clamp_min(sum by (consumergroup, topic) (kafka_consumergroup_lag), 0)",
+     "legendFormat": "{{consumergroup}} / {{topic}}"
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "type": "row",
+   "title": "telemetry-consumer: okunan veri Prometheus/Loki/Tempo'ya yazılıyor mu?",
+   "gridPos": {
+    "x": 0,
+    "y": 27,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 16,
+   "type": "timeseries",
+   "title": "Metrikler: alınan / iletilen / düşen",
+   "description": "**Ne gösterir:** Consumer'ın Kafka'dan aldığı ve Prometheus'a yazdığı metrik noktaları (saniyede).\n\n**Normalde:** 'alınan' ile 'iletilen' üst üste; 'düşen' 0.\n\n**Kırmızı/turuncuysa:** 'düşen' > 0: Prometheus reddediyor (erişim ya da çok eski örnek).",
+   "gridPos": {
+    "x": 0,
+    "y": 28,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_receiver_accepted_metric_points{job=~\".*telemetry-consumer.*\"}[5m]))",
+     "legendFormat": "alınan (Kafka'dan)"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_exporter_sent_metric_points{job=~\".*telemetry-consumer.*\"}[5m]))",
+     "legendFormat": "iletilen (Prometheus'a)"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_exporter_send_failed_metric_points{job=~\".*telemetry-consumer.*\"}[5m])) or vector(0)",
+     "legendFormat": "düşen"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ops"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 17,
+   "type": "timeseries",
+   "title": "Loglar: alınan / iletilen / düşen",
+   "description": "**Ne gösterir:** Consumer'ın Kafka'dan aldığı ve Loki'ye yazdığı log kayıtları (saniyede). Loglar olay oldukça gelir (audit, access).\n\n**Normalde:** Olay yoksa 0 olabilir; 'düşen' her zaman 0.\n\n**Kırmızı/turuncuysa:** 'düşen' > 0: Loki'ye yazılamıyor.",
+   "gridPos": {
+    "x": 12,
+    "y": 28,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_receiver_accepted_log_records{job=~\".*telemetry-consumer.*\"}[5m]))",
+     "legendFormat": "alınan (Kafka'dan)"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_exporter_sent_log_records{job=~\".*telemetry-consumer.*\"}[5m]))",
+     "legendFormat": "iletilen (Loki'ye)"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(otelcol_exporter_send_failed_log_records{job=~\".*telemetry-consumer.*\"}[5m])) or vector(0)",
+     "legendFormat": "düşen"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ops"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 18,
+   "type": "timeseries",
+   "title": "Gönderim kuyruğu doluluğu",
+   "description": "**Ne gösterir:** Consumer'ın hedeflere yazmadan önce beklettiği kuyruğun doluluğu.\n\n**Normalde:** %0'a yakın.\n\n**Kırmızı/turuncuysa:** %80 üstü: hedef yavaş; dolarsa kayıt düşer.",
+   "gridPos": {
+    "x": 0,
+    "y": 35,
+    "w": 12,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (exporter) (otelcol_exporter_queue_size{job=~\".*telemetry-consumer.*\"} / otelcol_exporter_queue_capacity{job=~\".*telemetry-consumer.*\"})",
+     "legendFormat": "{{exporter}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 0.8
+       }
+      ]
+     },
+     "unit": "percentunit"
+    },
+    "overrides": []
+   }
+  },
+  {
+   "id": 19,
+   "type": "timeseries",
+   "title": "Loki ve Tempo'ya giren veri",
+   "description": "**Ne gösterir:** Loki ve Tempo'nun kabul ettiği veri.\n\n**Normalde:** Loki olay oldukça; Tempo 0 (VectorDB trace'leri kapalı).\n\n**Kırmızı/turuncuysa:** Loki uzun süre 0 ve logların gelmesi bekleniyorsa Loki'ye bak.",
+   "gridPos": {
+    "x": 12,
+    "y": 35,
+    "w": 12,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(loki_distributor_lines_received_total[5m]))",
+     "legendFormat": "Loki: log satırı/sn"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(tempo_distributor_spans_received_total[5m])) or vector(0)",
+     "legendFormat": "Tempo: span/sn"
+    }
+   ]
+  },
+  {
+   "id": 20,
+   "type": "row",
+   "title": "SRE Agent: her alarma rapor üretiliyor mu?",
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 21,
+   "type": "stat",
+   "title": "Servis açıldığından beri",
+   "description": "**Ne gösterir:** SRE Agent pod'u açıldığından beri gelen alarm, üretilen rapor, tekrar diye atlanan ve eksik veriyle üretilen (kör noktalı) raporlar.\n\n**Normalde:** gelen alarm = üretilen rapor + tekrar (süren koşular hariç).\n\n**Kırmızı/turuncuysa:** 'kayıp alarm' kutusu > 0 ise rapor üretilemeyen alarm var: pod loguna bak. Kör noktalı rapor: o sırada veri eksikti, sonucu tek başına güvenilir değil.",
+   "gridPos": {
+    "x": 0,
+    "y": 42,
+    "w": 12,
+    "h": 5
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(sre_agent_alerts_received_total{status=\"firing\"}) or vector(0)",
+     "legendFormat": "gelen alarm"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(sre_agent_reports_total) or vector(0)",
+     "legendFormat": "üretilen rapor"
+    },
+    {
+     "refId": "C",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(sre_agent_alerts_deduplicated_total) or vector(0)",
+     "legendFormat": "tekrar (10 dk içinde)"
+    },
+    {
+     "refId": "D",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(sre_agent_reports_total{blind_spot=\"true\"}) or vector(0)",
+     "legendFormat": "kör noktalı rapor"
+    }
+   ],
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "orientation": "horizontal"
+   }
+  },
+  {
+   "id": 22,
+   "type": "stat",
+   "title": "Kayıp alarm",
+   "description": "**Ne gösterir:** Gelen ama raporu üretilmemiş alarm (servis açıldığından beri).\n\n**Normalde:** 0.\n\n**Kırmızı/turuncuysa:** > 0: rapor üretimi hata verdi; sre-agent pod logunda 'rapor üretilemedi' ara.",
+   "gridPos": {
+    "x": 12,
+    "y": 42,
+    "w": 4,
+    "h": 5
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "(sum(sre_agent_alerts_received_total{status=\"firing\"}) or vector(0)) - (sum(sre_agent_reports_total) or vector(0)) - (sum(sre_agent_alerts_deduplicated_total) or vector(0)) - (sum(sre_agent_runs_in_progress) or vector(0))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none"
+   }
+  },
+  {
+   "id": 23,
+   "type": "stat",
+   "title": "Rapor süresi p95",
+   "description": "**Ne gösterir:** Alarmın servise gelişinden raporun yazılmasına kadar geçen sürenin %95'lik değeri (son 1 saat). Alertmanager'ın 30 sn bekleme süresi buna dahil değil.\n\n**Normalde:** Birkaç saniye. Kabul: alarmdan Grafana'ya ≤ 60 sn.\n\n**Kırmızı/turuncuysa:** Uzunsa hangi kontrolün yavaş olduğuna aşağıdaki tabloda bak.",
+   "gridPos": {
+    "x": 16,
+    "y": 42,
+    "w": 8,
+    "h": 5
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(sre_agent_report_duration_seconds_bucket[1h])))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 20
+       },
+       {
+        "color": "red",
+        "value": 45
+       }
+      ]
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none"
+   }
+  },
+  {
+   "id": 24,
+   "type": "timeseries",
+   "title": "Kontrol sonuçları (yaklaşık, saatlik)",
+   "description": "**Ne gösterir:** Kontrollerin sonuç dağılımı: ok (sorun yok), anomaly (sorun bulundu), no_data (veri yok), error (kontrol çalışmadı).\n\n**Normalde:** Çoğunluk ok; anomaly olaylarla birlikte.\n\n**Kırmızı/turuncuysa:** error artıyorsa bir veri kaynağına erişilemiyor; no_data artıyorsa veri gelmiyor (kör nokta).",
+   "gridPos": {
+    "x": 0,
+    "y": 47,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (status) (increase(sre_agent_check_results_total[1h]))",
+     "legendFormat": "{{status}}"
+    }
+   ]
+  },
+  {
+   "id": 25,
+   "type": "table",
+   "title": "En çok 'veri yok' ya da 'hata' veren kontroller (24 sa)",
+   "description": "**Ne gösterir:** Son 24 saatte en sık veri bulamayan ya da çalışamayan kontroller.\n\n**Normalde:** Bazı kontroller bilinçli olarak no_data döner (ör. HPA yok, ingress metriği yok, trace kapalı).\n\n**Kırmızı/turuncuysa:** Beklenmeyen bir kontrol çok error veriyorsa onun veri kaynağına bak.",
+   "gridPos": {
+    "x": 12,
+    "y": 47,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "topk(10, sum by (check, status) (increase(sre_agent_check_results_total{status=~\"no_data|error\"}[24h])))",
+     "legendFormat": "",
+     "instant": true,
+     "format": "table"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      },
+      "renameByName": {
+       "Value": "adet",
+       "check": "kontrol",
+       "status": "durum"
+      }
+     }
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true
+     }
+    }
+   }
+  },
+  {
+   "id": 26,
+   "type": "row",
+   "title": "Altyapı diskleri",
+   "gridPos": {
+    "x": 0,
+    "y": 54,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": false,
+   "panels": []
+  },
+  {
+   "id": 27,
+   "type": "bargauge",
+   "title": "Disk doluluğu (Kafka, Prometheus, Loki, Tempo, Grafana)",
+   "description": "**Ne gösterir:** İzleme altyapısının kalıcı disklerinin doluluğu.\n\n**Normalde:** %80'in altı.\n\n**Kırmızı/turuncuysa:** %80 üstü: saklama süresini düşür ya da diski büyüt (PVCUsageHigh/Critical alarmları).",
+   "gridPos": {
+    "x": 0,
+    "y": 55,
+    "w": 24,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "kubelet_volume_stats_used_bytes{namespace=~\"kafka|monitoring\"} / kubelet_volume_stats_capacity_bytes{namespace=~\"kafka|monitoring\"}",
+     "legendFormat": "{{namespace}}/{{persistentvolumeclaim}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.8
+       },
+       {
+        "color": "red",
+        "value": 0.9
+       }
+      ]
+     },
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient"
+   }
+  },
+  {
+   "id": 31,
+   "type": "row",
+   "title": "Genel Kubernetes alarmları (bizim olmayanlar dahil) — açmak için tıkla",
+   "gridPos": {
+    "x": 0,
+    "y": 62,
+    "w": 24,
+    "h": 1
+   },
+   "collapsed": true,
+   "panels": [
+    {
+     "id": 28,
+     "type": "timeseries",
+     "title": "Tüm açık alarmlar (önem derecesi)",
+     "description": "**Ne gösterir:** Cluster'daki bütün alarmlar: kube-prometheus-stack'in genel Kubernetes kuralları dahil (çoğu bizim değil).\n\n**Normalde:** Az sayıda.\n\n**Kırmızı/turuncuysa:** VectorDB dışı alarmlar ilgili ekibin sorumluluğunda; bizimle ilgisi olanlar yukarıdaki VectorDB bölümünde.",
+     "gridPos": {
+      "x": 0,
+      "y": 63,
+      "w": 12,
+      "h": 7
+     },
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "targets": [
+      {
+       "refId": "A",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "expr": "sum by (severity) (ALERTS{alertstate=\"firing\",alertname!~\"Watchdog|InfoInhibitor\"})",
+       "legendFormat": "{{severity}}"
+      }
+     ]
+    },
+    {
+     "id": 29,
+     "type": "table",
+     "title": "Tüm açık alarmlar",
+     "description": "**Ne gösterir:** Cluster'daki bütün açık alarmlar.\n\n**Normalde:** -\n\n**Kırmızı/turuncuysa:** -",
+     "gridPos": {
+      "x": 12,
+      "y": 63,
+      "w": 12,
+      "h": 7
+     },
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "targets": [
+      {
+       "refId": "A",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "expr": "ALERTS{alertstate=\"firing\",alertname!~\"Watchdog|InfoInhibitor\"}",
+       "legendFormat": "",
+       "instant": true,
+       "format": "table"
+      }
+     ],
+     "transformations": [
+      {
+       "id": "organize",
+       "options": {
+        "excludeByName": {
+         "Time": true,
+         "Value": true,
+         "__name__": true,
+         "alertstate": true
+        },
+        "indexByName": {
+         "alertname": 0,
+         "severity": 1,
+         "namespace": 2
+        }
+       }
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "custom": {
+        "filterable": true
+       }
+      }
+     }
+    },
+    {
+     "id": 30,
+     "type": "timeseries",
+     "title": "Alertmanager'ın gönderemediği bildirimler",
+     "description": "**Ne gösterir:** Alertmanager'ın alıcılara (SRE Agent webhook'u dahil) iletemediği bildirimler.\n\n**Normalde:** 0.\n\n**Kırmızı/turuncuysa:** > 0: alıcıya ulaşılamıyor (SRE Agent kapalı olabilir).",
+     "gridPos": {
+      "x": 0,
+      "y": 70,
+      "w": 24,
+      "h": 6
+     },
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "targets": [
+      {
+       "refId": "A",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "expr": "sum by (integration) (rate(alertmanager_notifications_failed_total[5m]))",
+       "legendFormat": "{{integration}}"
+      }
+     ],
+     "fieldConfig": {
+      "defaults": {
+       "unit": "ops"
+      },
+      "overrides": []
+     }
+    }
+   ]
+  }
+ ]
+}

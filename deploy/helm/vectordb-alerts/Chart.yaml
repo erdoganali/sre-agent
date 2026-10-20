@@ -1,0 +1,5 @@
+apiVersion: v2
+name: vectordb-alerts
+description: VectorDB ve telemetri hattı için PrometheusRule'lar (eşikler values'ta, açıklamalar docs/alarmlar.md)
+type: application
+version: 0.2.0

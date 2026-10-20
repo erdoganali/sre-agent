@@ -1,0 +1,37 @@
+# Litmus ajanı (ChaosCenter'dan indirilen "chaos infrastructure", cluster-wide) üç hesabı küme çapında
+# yazma yetkisiyle kurar. Bu chart aynı yetkileri yalnızca `namespaces` listesinde (ve Litmus'un kendi
+# namespace'inde) RoleBinding olarak verir; kümede yalnızca okuma kalır. Ajanın ClusterRoleBinding'leri
+# `make litmus-scope` tarafından silinir (`removeClusterRoleBindings`).
+
+# Litmus'un kurulu olduğu namespace (ajanın hesapları burada)
+litmusNamespace: litmus
+
+# Deneylerin dokunabileceği namespace'ler. Yeni namespace: listeye ekle, `make litmus-scope`.
+namespaces: []
+
+# Bu namespace'ler listeye yazılırsa kurulum durur (yanlışlıkla gerçek tenant'a yetki verilmesin)
+forbiddenNamespaces: []
+
+# Hesap → ajanın tanımladığı ClusterRole (yetkinin içeriği aynı kalır, yalnızca kapsamı daralır)
+bindings:
+  - {serviceAccount: litmus-admin, clusterRole: litmus-admin-cluster-role}
+  - {serviceAccount: argo-chaos, clusterRole: infra-cluster-role}
+  - {serviceAccount: litmus, clusterRole: infra-cluster-role}
+
+# Kümede okuma: operator ChaosEngine'leri küme çapında izler, arayüz hedef listesi için namespace/
+# node/pod listeler. Secret, configmap ve pod logu bu listede yok.
+readServiceAccounts: [litmus]
+
+# Ajanın kurduğu, kaldırılacak küme çapındaki bağlar (make litmus-scope siler)
+removeClusterRoleBindings:
+  - litmus-admin-cluster-role-binding
+  - infra-cluster-role-binding
+  - argo-chaos-infra-cluster-role-binding
+
+# Litmus'un deney metrikleri (chaos-exporter) Prometheus'a toplanır; dashboard'larda deneyler
+# işaret olarak görünür (T1.8).
+exporterServiceMonitor:
+  enabled: true
+  selector: {app: chaos-exporter}
+  port: tcp
+  interval: 15s

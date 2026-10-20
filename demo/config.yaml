@@ -1,0 +1,11 @@
+# Demo mode (ADR-034): küme yok. Tool cevapları demo/incident.json kaydından, knowledge base yerel
+# dosyada, model .env'deki OpenAI uyumlu uç noktada (bkz. .env.example).
+packs:
+  - path: packs/vectordb
+
+investigation:
+  mode: "on"
+  models_file: demo/models.yaml
+
+knowledge:
+  uri: demo/out/knowledge.db

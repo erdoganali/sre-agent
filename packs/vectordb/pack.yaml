@@ -1,0 +1,60 @@
+# VectorDB (Milvus) domain paketi. Çekirdeğe yalnızca yapılandırmayla eklenir (sre_agent.packs).
+name: vectordb
+version: 0.1.0
+description: VectorDB / Milvus kontrolleri; metrikler hedef ortamdaki yoldan (job="milvus-metrics")
+module: vectordb_pack
+
+# Alarm adı (regex, tam eşleşme) → çalıştırılacak kontroller. T1.7'de rapor servisi kullanır.
+# Eşlenen alarmda YALNIZ listedekiler koşar; "@core" bütün çekirdek kontrolleri ekler.
+alert_routes:
+  # Pod yeniden başlama / CrashLoop: nedeni çoğu zaman pod'un dışında (node kaybı, etcd), bu
+  # yüzden çekirdeğin hepsi + Milvus sağlığı (2026-10: bu alarmlar eşlenmediği için Milvus
+  # kontrolleri hiç koşmuyordu ve raporda paket boştu).
+  "VectorDBPod(Restarting|CrashLooping)": ["@core", milvus_health, milvus_coordinators]
+  # etcd çoğunluğu ve topluca yeniden başlama: ortak bağımlılık arızası (etcd, depolama, operatör)
+  MilvusEtcdQuorumLost: ["@core", milvus_etcd, milvus_health, milvus_coordinators]
+  VectorDBTenantMassRestart:
+    ["@core", milvus_etcd, milvus_health, milvus_coordinators, milvus_object_storage]
+  "MilvusQueryNodeMemory.*":
+    [milvus_querynode_memory_quota, memory_near_limit, pod_restarts, golden_signals_baseline]
+  MilvusWriteDenied: [milvus_querynode_memory_quota, milvus_health, milvus_object_storage]
+  MilvusSearchLatencyP99High:
+    [golden_signals_baseline, milvus_coordinators, milvus_object_storage, milvus_segment_backlog,
+     cpu_throttling, memory_near_limit]
+  MilvusRequestErrorRateHigh:
+    [milvus_health, milvus_coordinators, milvus_connections, milvus_object_storage,
+     new_error_signatures, recent_rollouts]
+  MilvusTenantTelemetryStale: [kafka_consumer_lag, milvus_health, pod_restarts]
+  MilvusObjectStorageErrors: [milvus_object_storage, milvus_health, pod_restarts]
+
+# Alertmanager'da bu eşleyicilere uyan alarmlar sre-agent'a yönlendirilmeli
+# (deploy/values/<ortam>/kube-prometheus-stack.yaml; test denetler).
+alert_matchers:
+  - 'team="vectordb"'
+
+# Veri tazeliği: tenant'ın Milvus metriklerinin (gateway → Kafka → consumer) son
+# örneğinin yaşı. Sonuç boşsa (namespace tenant değil) uygulanmaz. {ns} yer tutucusu; PromQL
+# süslü parantezleri çift.
+freshness:
+  - name: milvus-telemetry
+    query: >-
+      time() - max(max_over_time(timestamp(
+      milvus_rootcoord_timestamp{{job="milvus-metrics",k8s_namespace_name="{ns}"}})[6h:1m]))
+    max_age_s: 600
+
+# Çekirdek kategorilerin Milvus'taki karşılıkları (etiketleme formunda gösterilir)
+category_notes:
+  database: >-
+    Milvus ve bağımlılıkları: querynode/streamingnode bellek kotası (force-deny-writing),
+    compaction/segment ve L0 delete birikimi, etcd, koordinatörler, bağlantı limiti. Milvus'un kendi
+    koruma sınırı (yazmayı reddetmesi) Capacity/Performance değil buradadır.
+  capacity_performance: >-
+    Milvus'ta: konteyner limitinin kendisi yetmiyor (OOMKilled, CPU throttling); Milvus'un kota
+    davranışı değil.
+  vendor_external: >-
+    Milvus'ta: object storage (GKE'de GCS, hedef ortamda Ceph) hataları ya da gecikmesi.
+  infrastructure_system: >-
+    Milvus'ta: telemetri hattı (Kafka, telemetry-consumer), Milvus operatörleri.
+
+# Investigation graph: modelin ürün specialist'i için yazabileceği adlar (T3.2)
+specialist_aliases: [milvus, vectordb]

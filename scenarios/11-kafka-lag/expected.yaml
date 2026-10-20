@@ -1,0 +1,14 @@
+id: 11-kafka-lag
+title: Telemetri tüketicisi durdu — Kafka lag ve bayat tenant verisi
+namespace: monitoring
+tool: kubectl
+verify: monitoring
+expected:
+  alerts: [KafkaConsumerLagHigh, MilvusTenantTelemetryStale]
+  alert_within_min: 12
+  category: infrastructure_system
+  root_cause: telemetry-consumer durdu; Kafka'da okunmayan mesaj birikiyor, tenant'ların Milvus verisi bayatlıyor.
+  evidence: [kafka_consumer_lag]
+notes: >-
+  telemetry-consumer 0'a ölçeklenir (make pipeline-demo'nun yaptığı gibi). Bu süre içindeki raporlar
+  "kör nokta" uyarısı taşır. 2 saatten uzun sürerse geriden okunan metrikler kaybolur; senaryo 15 dk içinde temizlenmeli.

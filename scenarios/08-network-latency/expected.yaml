@@ -1,0 +1,16 @@
+id: 08-network-latency
+title: Ağ gecikmesi — uygulama zamanında yanıt veremiyor
+namespace: sre-lab
+tool: litmus
+verify: lab
+expected:
+  alerts: [LabPodNotReady]
+  alert_within_min: 5
+  category: network
+  root_cause: Pod'un ağına 2 sn gecikme eklendi; readiness kontrolü (1 sn zaman aşımı) başarısız, pod hazır değil.
+  evidence: [probe_timeouts]
+notes: >-
+  Litmus pod-network-latency, 7 dk. Uygulamanın bağımlılığı olmadığı için ağ kontrollerinin (dns_errors,
+  connection_errors) göreceği bir sinyal beklenmiyor; raporda ağ kanıtı çıkmaması bir boşluk (T1.9'da ölçülür).
+  Düzeltme (2026-10-09): ilk ön koşuda alarm ve rapor vardı ama "network" kategorisi yoktu. probe_timeouts kontrolü
+  eklendi (kubelet'in Unhealthy olaylarında "probe failed" + zaman aşımı → network); beklenen kanıt artık bu.

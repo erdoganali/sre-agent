@@ -1,0 +1,16 @@
+{{- range .Values.topics }}
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: {{ .name | replace "." "-" | replace "_" "-" }}
+  labels:
+    strimzi.io/cluster: {{ $.Values.clusterName }}
+    {{- include "kafka.labels" $ | nindent 4 }}
+spec:
+  topicName: {{ .name }}
+  partitions: {{ .partitions }}
+  replicas: {{ $.Values.replicationFactor }}
+  config:
+    {{- toYaml (merge (dict) (.config | default dict) $.Values.defaultTopicConfig) | nindent 4 }}
+{{- end }}

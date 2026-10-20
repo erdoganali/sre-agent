@@ -1,0 +1,49 @@
+# sre-agent çekirdek yapılandırması — GKE (cluster içi adresler).
+# Paket yolları --base'e göredir (image'da /app, yerelde repo kökü).
+packs:
+  - path: packs/vectordb
+
+prometheus_url: http://monitoring-kube-prometheus-prometheus.monitoring:9090
+loki_url: http://loki.monitoring:3100
+tempo_url: http://tempo.monitoring:3200
+grafana_url: http://monitoring-grafana.monitoring:80
+
+tls_endpoints:
+  - host: telemetry-kafka-bootstrap.kafka.svc
+    port: 9095
+
+# Grafana anotasyonundaki rapor bağlantısı (ingress, basic auth)
+report_base_url: http://sre-agent.example.internal
+
+# Veri tazeliği sorguları ürüne özgüdür ve paketlerde durur (packs/*/pack.yaml, `freshness`).
+# Buraya yalnızca ortama özgü olanlar yazılır.
+freshness: []
+
+# Etiketsiz raporların saklama süresi (gün); etiketliler hiç silinmez. Veritabanı küçük (2026-10:
+# 250 rapor ≈ 2 MB); süre, sonradan etiketleme için pencere bırakır.
+retention_days: 30
+
+# Karar noktaları (T2.5, ADR-028): gölge mod — kurallar karar verir, model arka planda koşup
+# yalnız kaydedilir. Model erişilemezken model kararları hata olarak kaydedilir (bağlantı 5 sn'de
+# düşer); kural kararları yine yazılır.
+decisions:
+  mode: shadow
+
+# Investigation graph (T3.2): on — incident 3 dk sessizleşince graph bir kez koşar; sonucu rapor
+# sayfasının başına yazılır (ADR-034). Model erişilemezken yedek yolla rapor üretir.
+investigation:
+  mode: "on"
+  quiet_s: 180
+  # Modelli specialist'ler (T3.4): MCP sunucuları (chart: mcp.enabled). GKE'de model erişimi
+  # olmadığı için orada tanımlı değil; specialist'ler Faz 1 kanıtıyla çalışır.
+  mcp_servers:
+    metrics: http://sre-agent-mcp-metrics:8080/mcp
+    logs: http://sre-agent-mcp-logs:8080/mcp
+    traces: http://sre-agent-mcp-traces:8080/mcp
+    k8s: http://sre-agent-mcp-k8s:8080/mcp
+    product: http://sre-agent-mcp-product:8080/mcp
+
+# Bilgi tabanı (RAG, ADR-034): VectorDB tenant'ı sandbox'in Milvus'u (dogfooding). Kimlik
+# sre-agent-knowledge Secret'ında (KNOWLEDGE_TOKEN). İndeks: python -m sre_agent.knowledge index
+knowledge:
+  uri: http://cus-sandbox-milvus.sandbox:19530

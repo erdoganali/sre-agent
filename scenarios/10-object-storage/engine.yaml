@@ -1,0 +1,25 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: s10-object-storage
+  namespace: loadtest
+  labels: {app.kubernetes.io/part-of: sre-agent-chaos, sre-agent/scenario: 10-object-storage}
+spec:
+  engineState: active
+  chaosServiceAccount: litmus-admin
+  appinfo:
+    appns: loadtest
+    applabel: app.kubernetes.io/component=streamingnode
+    appkind: deployment
+  jobCleanUpPolicy: delete
+  experiments:
+    - name: pod-network-loss
+      spec:
+        components:
+          env:
+            - {name: TARGET_CONTAINER, value: streamingnode}
+            - {name: NETWORK_PACKET_LOSS_PERCENTAGE, value: "100"}
+            - {name: DESTINATION_HOSTS, value: storage.googleapis.com}
+            - {name: TOTAL_CHAOS_DURATION, value: "600"}
+            - {name: CONTAINER_RUNTIME, value: containerd}
+            - {name: SOCKET_PATH, value: /run/containerd/containerd.sock}

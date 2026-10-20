@@ -1,0 +1,6 @@
+# Domain paketlerinin dashboard'ları. Helm chart dışındaki dosyayı okuyamadığı için JSON içeriği
+# kurulumda verilir (make pack-dashboards):
+#   --set-file dashboards.<ad>=packs/<paket>/dashboards/<ad>.json
+# Grafana'nın sidecar'ı grafana_dashboard=1 etiketli ConfigMap'leri yükler (kube-prometheus-stack).
+folder: ""
+dashboards: {}

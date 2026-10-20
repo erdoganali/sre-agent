@@ -1,0 +1,1434 @@
+{
+ "uid": "sre-agent-reports",
+ "title": "SRE Agent / Raporlar",
+ "tags": [
+  "sre-agent"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 3,
+ "refresh": "1m",
+ "time": {
+  "from": "now-7d",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "urun",
+    "label": "Ürün (paket)",
+    "type": "query",
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "sre-agent-db"
+    },
+    "query": "SELECT DISTINCT unnest(packs) FROM reports.reports ORDER BY 1",
+    "definition": "SELECT DISTINCT unnest(packs) FROM reports.reports ORDER BY 1",
+    "refresh": 2,
+    "includeAll": true,
+    "allValue": "__all",
+    "multi": false,
+    "current": {
+     "text": "All",
+     "value": "$__all"
+    }
+   },
+   {
+    "name": "test",
+    "label": "Test raporları",
+    "type": "custom",
+    "query": "hariç,dahil",
+    "current": {
+     "text": "hariç",
+     "value": "hariç"
+    },
+    "options": [
+     {
+      "text": "hariç",
+      "value": "hariç",
+      "selected": true
+     },
+     {
+      "text": "dahil",
+      "value": "dahil",
+      "selected": false
+     }
+    ]
+   },
+   {
+    "name": "rapor",
+    "label": "Rapor ID",
+    "type": "textbox",
+    "query": "",
+    "current": {
+     "text": "",
+     "value": ""
+    },
+    "description": "Rapor kimliğinin başı (ör. 5f8a); boşsa hepsi"
+   },
+   {
+    "name": "etiket",
+    "label": "Etiket",
+    "type": "custom",
+    "query": "hepsi,etiketsiz,etiketli",
+    "current": {
+     "text": "hepsi",
+     "value": "hepsi"
+    },
+    "options": [
+     {
+      "text": "hepsi",
+      "value": "hepsi",
+      "selected": true
+     },
+     {
+      "text": "etiketsiz",
+      "value": "etiketsiz",
+      "selected": false
+     },
+     {
+      "text": "etiketli",
+      "value": "etiketli",
+      "selected": false
+     }
+    ]
+   }
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "name": "SRE raporları",
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "iconColor": "red",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "sre-agent"
+     ],
+     "matchAny": true,
+     "limit": 200
+    }
+   },
+   {
+    "name": "Chaos deneyleri",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "enable": true,
+    "iconColor": "purple",
+    "expr": "max by (chaosresult_namespace, chaosresult_name, fault_name) (litmuschaos_awaited_experiments) > 0",
+    "titleFormat": "Chaos: {{fault_name}}",
+    "textFormat": "{{chaosresult_namespace}} / {{chaosresult_name}} (Litmus)",
+    "step": "30s"
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "text",
+   "title": "",
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 4
+   },
+   "options": {
+    "mode": "markdown",
+    "content": "**SRE Agent her alarm için LLM kullanmadan kontrolleri çalıştırır ve kanıtlı bir rapor üretir; raporlar kalıcı olarak saklanır.**\nTablodaki **rapor** bağlantısı tam raporu, **etiketle** bağlantısı etiket formunu açar. *Etiket* = olayın gerçek nedeni; ajanı ölçmek ve karar modelini eğitmek için kullanılır.\n**⚠ kör nokta** satırları eksik/bayat veriyle üretilmiştir: önce **SRE Platform / Telemetri hattı** dashboard'unda hattı kontrol et. Rehber: repoda `docs/dashboard-rehberi.md`."
+   }
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Rapor",
+   "description": "**Ne gösterir:** Seçilen aralıkta üretilen rapor sayısı.\n\n**Normalde:** Alarm oldukça artar.\n\n**Dikkat:** -",
+   "gridPos": {
+    "x": 0,
+    "y": 4,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(*) AS \"Rapor\" FROM reports.reports WHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL)))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Anomali bulunan",
+   "description": "**Ne gösterir:** En az bir kontrolün sorun bulduğu raporlar.\n\n**Normalde:** Gerçek olaylarda > 0.\n\n**Dikkat:** Hiç anomalisi olmayan raporların nedeni alarm eşiği ya da kontrol eksikliği olabilir.",
+   "gridPos": {
+    "x": 6,
+    "y": 4,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(*) FILTER (WHERE cardinality(anomalies) > 0) AS \"Anomali bulunan\" FROM reports.reports WHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL)))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Kör noktalı",
+   "description": "**Ne gösterir:** Eksik ya da bayat veriyle üretilen raporlar.\n\n**Normalde:** 0.\n\n**Dikkat:** > 0: o anlarda telemetri hattında sorun vardı; bu raporların 'anomali yok' sonucu güvenilir değil.",
+   "gridPos": {
+    "x": 12,
+    "y": 4,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(*) FILTER (WHERE cardinality(blind_spots) > 0) AS \"Kör noktalı\" FROM reports.reports WHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL)))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "Etiketsiz",
+   "description": "**Ne gösterir:** Gerçek nedeni henüz girilmemiş raporlar.\n\n**Normalde:** Kapanan olaylar etiketlendikçe azalır.\n\n**Dikkat:** Etiketsiz rapor eğitim verisine girmez; tablodan 'etiketle' ile doldur.",
+   "gridPos": {
+    "x": 18,
+    "y": 4,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(*) FILTER (WHERE label_category IS NULL) AS \"Etiketsiz\" FROM reports.reports WHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL)))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "value",
+    "graphMode": "none",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   }
+  },
+  {
+   "id": 6,
+   "type": "table",
+   "title": "Raporlar (en yeni üstte)",
+   "description": "**Ne gösterir:** Seçilen aralıktaki raporlar. 'rapor' tam raporu, 'etiketle' etiket formunu açar.\n\n**Normalde:** Her alarm için bir satır.\n\n**Dikkat:** 'kör nokta' dolu satırlar eksik veriyle üretilmiştir; 'etiket' boş olanlar henüz etiketlenmemiştir.",
+   "gridPos": {
+    "x": 0,
+    "y": 8,
+    "w": 24,
+    "h": 11
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT generated_at AS \"zaman\", alertname AS \"alarm\", namespace,\n  CASE WHEN cardinality(anomalies) = 0 THEN 'yok' ELSE array_to_string(anomalies, ', ') END AS \"anomaliler\",\n  CASE WHEN cardinality(blind_spots) > 0 THEN '⚠ ' || array_to_string(blind_spots, '; ') ELSE '' END AS \"kör nokta\",\n  CASE WHEN resolved_at IS NULL THEN 'açık' ELSE 'çözüldü' END AS \"durum\",\n  COALESCE(label_category, '—') AS \"etiket\",\n  CASE WHEN is_test THEN 'test' ELSE '' END AS \"test\",\n  array_to_string(packs, ', ') AS \"paket\",\n  id AS \"rapor\", id AS \"etiketle\"\nFROM reports.reports WHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL)))\nORDER BY generated_at DESC LIMIT 200"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "cellOptions": {
+       "type": "auto"
+      },
+      "filterable": true
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "rapor"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Tam rapor",
+          "url": "http://sre-agent.example.internal/reports/${__value.raw}.md",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "etiketle"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Etiketle",
+          "url": "http://sre-agent.example.internal/reports/${__value.raw}/label",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "kör nokta"
+      },
+      "properties": [
+       {
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "color-text"
+        }
+       },
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "orange"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "sortBy": [
+     {
+      "displayName": "zaman",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 7,
+   "type": "barchart",
+   "title": "Anomali bulunan kategoriler",
+   "description": "**Ne gösterir:** Kontrollerin anomali bulduğu kategoriler (tüm raporlarda toplam).\n\n**Normalde:** Olaylara göre değişir.\n\n**Dikkat:** Bir kategori sürekli öndeyse o alan için kalıcı bir sorun olabilir.",
+   "gridPos": {
+    "x": 0,
+    "y": 19,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT key AS \"kategori\", SUM(value::int) AS \"anomali\" FROM reports.reports, jsonb_each_text(anomalies_by_category)\nWHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL))) GROUP BY key ORDER BY 2 DESC"
+    }
+   ],
+   "options": {
+    "orientation": "horizontal",
+    "xTickLabelRotation": 0,
+    "showValue": "always"
+   }
+  },
+  {
+   "id": 8,
+   "type": "barchart",
+   "title": "Etiketlenen gerçek nedenler",
+   "description": "**Ne gösterir:** İnsanların girdiği gerçek neden (etiket) dağılımı.\n\n**Normalde:** Etiketsiz sayısı zamanla azalır.\n\n**Dikkat:** Ajanın bulduğu kategoriler (soldaki) ile gerçek nedenler (bu grafik) çok farklıysa kontroller yanlış yere bakıyor olabilir.",
+   "gridPos": {
+    "x": 12,
+    "y": 19,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT COALESCE(label_category, '(etiketsiz)') AS \"etiket\", count(*) AS \"rapor\" FROM reports.reports\nWHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL))) GROUP BY 1 ORDER BY 2 DESC"
+    }
+   ],
+   "options": {
+    "orientation": "horizontal",
+    "showValue": "always"
+   }
+  },
+  {
+   "id": 9,
+   "type": "table",
+   "title": "Veri bulamayan ya da çalışamayan kontroller",
+   "description": "**Ne gösterir:** Raporlarda en sık 'no_data' (veri yok) ya da 'error' (çalışmadı) dönen kontroller.\n\n**Normalde:** Bazıları bilinçli no_data döner (HPA yok, ingress metriği yok, trace kapalı).\n\n**Dikkat:** Beklenmeyen bir kontrol sık 'error' veriyorsa veri kaynağına erişilemiyor.",
+   "gridPos": {
+    "x": 0,
+    "y": 27,
+    "w": 12,
+    "h": 8
+   },
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT e->>'check' AS \"kontrol\", e->>'status' AS \"durum\", count(*) AS \"adet\"\nFROM reports.reports, jsonb_array_elements(report->'evidence') e\nWHERE $__timeFilter(generated_at) AND ('${test}' = 'dahil' OR NOT is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(packs)) AND (${rapor:sqlstring} = '' OR id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (label_category IS NOT NULL))) AND e->>'status' IN ('no_data','error')\nGROUP BY 1, 2 ORDER BY 3 DESC LIMIT 15"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true
+     }
+    }
+   }
+  },
+  {
+   "id": 10,
+   "type": "annolist",
+   "title": "Grafana anotasyonları (rapor özetleri)",
+   "gridPos": {
+    "x": 12,
+    "y": 27,
+    "w": 12,
+    "h": 8
+   },
+   "description": "**Ne gösterir:** Raporların Grafana'ya yazılan kısa özetleri; diğer dashboard'larda kırmızı işaret olarak görünürler.\n\n**Normalde:** Her rapor için bir satır.\n\n**Dikkat:** '⚠ kör nokta' ile başlayan satırlar eksik veriyle üretilmiştir.",
+   "options": {
+    "onlyFromThisDashboard": false,
+    "onlyInTimeRange": true,
+    "tags": [
+     "sre-agent"
+    ],
+    "limit": 50,
+    "showUser": false,
+    "showTime": true,
+    "showTags": true,
+    "navigateToPanel": false,
+    "navigateBefore": "10m",
+    "navigateAfter": "10m"
+   }
+  },
+  {
+   "id": 11,
+   "type": "row",
+   "title": "Model ve bütçe (Faz 2)",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 35,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 12,
+   "type": "stat",
+   "title": "Koşu başına token (p95, 24 sa)",
+   "description": "Sert sınır 1M, yumuşak 600K (ADR-004).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 36,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (increase(sre_agent_run_tokens_bucket[24h])))",
+     "legendFormat": "p95"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 600000
+       },
+       {
+        "color": "red",
+        "value": 1000000
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 13,
+   "type": "stat",
+   "title": "Bütçe reddi (24 sa)",
+   "description": "Sınır aşılacağı için yapılmayan model çağrıları (koşu, uzman ya da bağlam penceresi).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 36,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(sre_agent_budget_rejections_total[24h])) or vector(0)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 14,
+   "type": "stat",
+   "title": "Erken sentez / tükenen koşu (24 sa)",
+   "description": "Yumuşak sınırı (600K) geçen koşular erken senteze, sert sınıra (1M) ulaşanlar 'kesin değil' rapora gider.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 36,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(sre_agent_run_budget_outcome_total{outcome=\"wrap_up\"}[24h])) or vector(0)",
+     "legendFormat": "erken sentez"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(sre_agent_run_budget_outcome_total{outcome=\"exhausted\"}[24h])) or vector(0)",
+     "legendFormat": "tükendi"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 15,
+   "type": "stat",
+   "title": "Sırada bekleyen koşu",
+   "description": "Aynı anda 2 koşu sınırında bekleyenler (critical önce).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 36,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(sre_agent_runs_waiting) or vector(0)",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 16,
+   "type": "timeseries",
+   "title": "Token / dk (model, rol, tür)",
+   "description": "Girdi ve çıktı token'ları; rol: decision / specialist / synthesize.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (model, role, type) (rate(sre_agent_model_tokens_total[5m])) * 60",
+     "legendFormat": "{{model}} {{role}} {{type}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 17,
+   "type": "timeseries",
+   "title": "Model çağrı süresi p95 ve sonuç",
+   "description": "outcome: ok | error (erişim, şema) | budget (çağrı yapılmadı). Span'lar Tempo'da: service.name=sre-agent.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 40,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, model, role) (rate(sre_agent_model_request_duration_seconds_bucket[5m])))",
+     "legendFormat": "p95 {{model}} {{role}}"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (outcome) (rate(sre_agent_model_requests_total[5m])) * 60",
+     "legendFormat": "{{outcome}} / dk"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byRegexp",
+       "options": ".*/ dk"
+      },
+      "properties": [
+       {
+        "id": "unit",
+        "value": "short"
+       },
+       {
+        "id": "custom.axisPlacement",
+        "value": "right"
+       }
+      ]
+     }
+    ]
+   },
+   "options": {}
+  },
+  {
+   "id": 18,
+   "type": "timeseries",
+   "title": "Kırpılan tool sonuçları / sa",
+   "description": "~8K token'ı aşıp kırpılan tool sonuçları; sık görülüyorsa sorgular daraltılmalı.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 48,
+    "w": 12,
+    "h": 6
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(sre_agent_tool_results_truncated_total[1h]))",
+     "legendFormat": "kırpılan"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 19,
+   "type": "row",
+   "title": "Kararlar (T2.5 — gölge modda model yalnız kaydedilir)",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 54,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 20,
+   "type": "stat",
+   "title": "Karar verilen rapor",
+   "description": "Karar katmanından geçen raporlar.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 55,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(DISTINCT d.report_id) AS \"rapor\" FROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL)))"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 21,
+   "type": "stat",
+   "title": "Bilinmiyor / değerlendirilemedi",
+   "description": "Etkili grup kararlarında kodun 'bilinmiyor' (eşik/fark) ya da 'değerlendirilemedi' (kapsama düşük) dediği oran (ADR-028).",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 55,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT 100.0 * count(*) FILTER (WHERE d.outcome IN ('unknown','not_assessable')) / NULLIF(count(*),0) AS \"%\" FROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL))) AND d.point = 'group' AND d.effective"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "decimals": 0
+    },
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 22,
+   "type": "stat",
+   "title": "Gürültü işaretli",
+   "description": "Gürültü olarak işaretlenen raporlar; rapor bastırılmaz, yalnız önceliği düşer.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 55,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(DISTINCT d.report_id) AS \"rapor\" FROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL))) AND d.noise_flag"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 23,
+   "type": "stat",
+   "title": "Model hatası",
+   "description": "Model kararının alınamadığı raporlar (erişim, zaman aşımı, logprob yok). Bu raporlarda kurallar karar verdi.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 55,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(DISTINCT d.report_id) AS \"rapor\" FROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL))) AND d.source = 'model' AND d.error IS NOT NULL"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": []
+   },
+   "options": {}
+  },
+  {
+   "id": 24,
+   "type": "table",
+   "title": "Rapor başına kararlar",
+   "description": "Etkili karar raporda kullanılandır (gölge modda kurallar). 'model' sütunu gölgedeki model kararıdır; kategori olasılığı grup x grup içi.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 59,
+    "w": 24,
+    "h": 10
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT r.generated_at AS \"zaman\", r.alertname AS \"alarm\",\n  COALESCE(max(CASE WHEN d.point = 'category' AND d.effective THEN d.outcome || ' (' || d.source || ')' END),\n           max(CASE WHEN d.point = 'group' AND d.effective THEN d.outcome || ' (' || d.source || ')' END))\n    AS \"etkili karar\",\n  COALESCE(max(CASE WHEN d.point = 'category' AND d.source = 'rules' THEN d.outcome END),\n           max(CASE WHEN d.point = 'group' AND d.source = 'rules' THEN d.outcome END)) AS \"kurallar\",\n  COALESCE(max(CASE WHEN d.source = 'model' AND d.error IS NOT NULL THEN 'hata' END),\n           max(CASE WHEN d.point = 'category' AND d.source = 'model' THEN d.outcome || ' ' || round(d.probability::numeric, 2) END),\n           max(CASE WHEN d.point = 'group' AND d.source = 'model' THEN d.outcome END), '—') AS \"model\",\n  max(CASE WHEN d.point = 'known' THEN d.outcome END) AS \"bilinen\",\n  CASE WHEN bool_or(d.noise_flag) THEN 'gürültü' ELSE '' END AS \"işaret\",\n  COALESCE(r.label_category, '—') AS \"etiket\",\n  r.id AS \"rapor\", r.id AS \"etiketle\"\nFROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL)))\nGROUP BY r.id ORDER BY r.generated_at DESC LIMIT 200"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "cellOptions": {
+       "type": "auto"
+      },
+      "filterable": true
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "rapor"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Tam rapor",
+          "url": "http://sre-agent.example.internal/reports/${__value.raw}.md",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "etiketle"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Etiketle",
+          "url": "http://sre-agent.example.internal/reports/${__value.raw}/label",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "sortBy": [
+     {
+      "displayName": "zaman",
+      "desc": true
+     }
+    ]
+   }
+  },
+  {
+   "id": 25,
+   "type": "barchart",
+   "title": "Etiketli raporlarda sonuç (kaynak başına)",
+   "description": "Etiketli raporlarda kurallar ve model yan yana (T2.6'nın kaba görünümü; asıl ölçüm senaryo bazında, make decisions-eval).",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 69,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "WITH x AS (\n  SELECT r.id, r.label_category AS lab, d.source,\n    COALESCE(max(CASE WHEN d.point = 'category' THEN d.outcome END),\n             max(CASE WHEN d.point = 'group' THEN d.outcome END)) AS out,\n    bool_or(d.error IS NOT NULL) AS err\n  FROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL))) AND r.label_category IS NOT NULL AND d.source IN ('rules', 'model')\n  GROUP BY r.id, r.label_category, d.source)\nSELECT source AS \"kaynak\",\n  count(*) FILTER (WHERE NOT err AND out = lab AND out NOT IN ('unknown', 'not_assessable')) AS \"doğru\",\n  count(*) FILTER (WHERE NOT err AND out IN ('unknown', 'not_assessable')) AS \"bilinmiyor\",\n  count(*) FILTER (WHERE NOT err AND out NOT IN ('unknown', 'not_assessable') AND out <> lab) AS \"yanlış\",\n  count(*) FILTER (WHERE err) AS \"hata\"\nFROM x GROUP BY source ORDER BY source"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {},
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "doğru"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "green"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "bilinmiyor"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "yellow"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "yanlış"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "hata"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "gray"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "stacking": "normal",
+    "orientation": "horizontal",
+    "showValue": "auto",
+    "legend": {
+     "showLegend": true,
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   }
+  },
+  {
+   "id": 26,
+   "type": "table",
+   "title": "Kurallar ve model ayrıştı",
+   "description": "İki yöntemin farklı grup verdiği raporlar: etiketlenmesi en değerli olanlar.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 69,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT r.generated_at AS \"zaman\", r.alertname AS \"alarm\",\n  max(CASE WHEN d.point = 'group' AND d.source = 'rules' THEN d.outcome END) AS \"kurallar (grup)\",\n  max(CASE WHEN d.point = 'group' AND d.source = 'model' THEN d.outcome END) AS \"model (grup)\",\n  COALESCE(r.label_category, '—') AS \"etiket\", r.id AS \"rapor\"\nFROM reports.decisions d JOIN reports.reports r ON r.id = d.report_id WHERE $__timeFilter(r.generated_at) AND ('${test}' = 'dahil' OR NOT r.is_test) AND ('${urun}' = '__all' OR '${urun}' = ANY(r.packs)) AND (${rapor:sqlstring} = '' OR r.id LIKE ${rapor:sqlstring} || '%') AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (r.label_category IS NOT NULL)))\nGROUP BY r.id\nHAVING max(CASE WHEN d.point = 'group' AND d.source = 'rules' THEN d.outcome END)\n    IS DISTINCT FROM max(CASE WHEN d.point = 'group' AND d.source = 'model' AND d.error IS NULL THEN d.outcome END)\n  AND bool_or(d.source = 'model' AND d.point = 'group' AND d.error IS NULL)\nORDER BY r.generated_at DESC LIMIT 100"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "rapor"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Tam rapor",
+          "url": "http://sre-agent.example.internal/reports/${__value.raw}.md",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     }
+    ]
+   },
+   "options": {}
+  },
+  {
+   "id": 27,
+   "type": "row",
+   "title": "Olaylar (T3.1 — aynı nedenden gelen raporlar tek olay)",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 77,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 28,
+   "type": "table",
+   "title": "Olaylar",
+   "description": "Olay: aynı nedenden gelen raporlar (ortak node kaybı ya da aynı namespace'te benzer kanıt, 30 dk içinde). Etiket olay sayfasında bütün raporlara uygulanır.",
+   "datasource": {
+    "type": "grafana-postgresql-datasource",
+    "uid": "sre-agent-db"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 78,
+    "w": 24,
+    "h": 10
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "grafana-postgresql-datasource",
+      "uid": "sre-agent-db"
+     },
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT i.opened_at AS \"açıldı\", i.last_seen_at AS \"son rapor\",\n  i.report_count AS \"rapor\", array_to_string(i.namespaces, ', ') AS \"namespace\",\n  CASE WHEN cardinality(i.lost_nodes) > 0 THEN array_to_string(i.lost_nodes, ', ') ELSE '' END AS \"kayıp node\",\n  array_to_string(i.common_anomalies, ', ') AS \"ortak kanıt\",\n  COALESCE(i.label_category, '—') AS \"etiket\", i.id AS \"olay\", i.id AS \"etiketle\"\nFROM reports.incidents i\nWHERE $__timeFilter(i.opened_at)\n  AND ('${etiket}' = 'hepsi' OR (('${etiket}' = 'etiketli') = (i.label_category IS NOT NULL)))\n  AND (${rapor:sqlstring} = '' OR i.id LIKE ${rapor:sqlstring} || '%'\n       OR EXISTS (SELECT 1 FROM reports.reports r WHERE r.incident_id = i.id AND r.id LIKE ${rapor:sqlstring} || '%'))\nORDER BY i.opened_at DESC LIMIT 200"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "filterable": true,
+      "cellOptions": {
+       "type": "auto"
+      }
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "olay"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Olay (JSON)",
+          "url": "http://sre-agent.example.internal/incidents/${__value.raw}",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     },
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "etiketle"
+      },
+      "properties": [
+       {
+        "id": "links",
+        "value": [
+         {
+          "title": "Olayı etiketle",
+          "url": "http://sre-agent.example.internal/incidents/${__value.raw}/label",
+          "targetBlank": true
+         }
+        ]
+       },
+       {
+        "id": "custom.width",
+        "value": 110
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "showHeader": true,
+    "sortBy": [
+     {
+      "displayName": "açıldı",
+      "desc": true
+     }
+    ]
+   }
+  }
+ ]
+}

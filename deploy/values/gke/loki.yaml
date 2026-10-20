@@ -1,0 +1,81 @@
+# Loki (grafana-community/loki 18.13.5, Loki 3.7.8) — tek binary, dosya sistemi depolama. GKE.
+# S3 uyumlu nesne deposu kullanılacaksa loki.storage buradan değiştirilir.
+
+deploymentMode: SingleBinary
+
+loki:
+  # Tek kiracı: X-Scope-OrgID gerekmez.
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2026-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  limits_config:
+    retention_period: 168h  # 7 gün
+    allow_structured_metadata: true
+    volume_enabled: true
+    # VectorDB'ın log ayrımı (audit / access / health) sorgulanabilir label olsun.
+    otlp_config:
+      resource_attributes:
+        attributes_config:
+          - action: index_label
+            attributes: [log_source]
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+  pattern_ingester:
+    enabled: true
+  # Dışarıya çağrı yok (air-gapped).
+  analytics:
+    reporting_enabled: false
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: true
+    size: 20Gi
+    enableStatefulSetAutoDeletePVC: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+
+# Tek binary modunda kullanılmayan bileşenler
+write:
+  replicas: 0
+read:
+  replicas: 0
+backend:
+  replicas: 0
+gateway:
+  enabled: false
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+minio:
+  enabled: false
+# Loki alarm kuralı kullanılmıyor; kural sidecar'ı gereksiz.
+sidecar:
+  rules:
+    enabled: false
+
+# kube-prometheus-stack tüm ServiceMonitor'ları okuyor.
+monitoring:
+  serviceMonitor:
+    enabled: true

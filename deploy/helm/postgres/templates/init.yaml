@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-init
+  labels: {{- include "pg.labels" . | nindent 4 }}
+data:
+  # Yalnızca ilk kurulumda (boş veri dizini) çalışır. Şifreler Secret'tan env ile gelir.
+  10-sre-agent.sh: |
+    #!/bin/bash
+    set -euo pipefail
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<SQL
+    CREATE ROLE {{ .Values.appUser }} LOGIN PASSWORD '${APP_PASSWORD}';
+    CREATE DATABASE {{ .Values.database }} OWNER {{ .Values.appUser }};
+    CREATE ROLE {{ .Values.readOnlyUser }} LOGIN PASSWORD '${RO_PASSWORD}';
+    ALTER ROLE {{ .Values.readOnlyUser }} SET default_transaction_read_only = on;
+    SQL
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname {{ .Values.database }} <<SQL
+    CREATE SCHEMA reports AUTHORIZATION {{ .Values.appUser }};
+    CREATE SCHEMA agent AUTHORIZATION {{ .Values.appUser }};
+    REVOKE ALL ON DATABASE {{ .Values.database }} FROM PUBLIC;
+    GRANT CONNECT ON DATABASE {{ .Values.database }} TO {{ .Values.appUser }}, {{ .Values.readOnlyUser }};
+    GRANT USAGE ON SCHEMA reports TO {{ .Values.readOnlyUser }};
+    ALTER DEFAULT PRIVILEGES FOR ROLE {{ .Values.appUser }} IN SCHEMA reports
+      GRANT SELECT ON TABLES TO {{ .Values.readOnlyUser }};
+    SQL

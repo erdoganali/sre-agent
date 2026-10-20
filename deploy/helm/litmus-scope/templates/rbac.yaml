@@ -1,0 +1,66 @@
+{{- $forbidden := .Values.forbiddenNamespaces | default list -}}
+{{- range .Values.namespaces }}
+{{- if has . $forbidden }}
+{{- fail (printf "litmus-scope: %s korunan bir namespace; deneylere yetki verilemez" .) }}
+{{- end }}
+{{- end }}
+{{- $targets := prepend (.Values.namespaces | default list) .Values.litmusNamespace | uniq -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: litmus-scope-read
+  labels:
+    app.kubernetes.io/part-of: sre-agent-chaos
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, nodes, pods, events, services, replicationcontrollers]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, daemonsets, replicasets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch]
+  - apiGroups: [litmuschaos.io]
+    resources: [chaosengines, chaosexperiments, chaosresults, chaosschedules]
+    verbs: [get, list, watch]
+  - apiGroups: [eventtracker.litmuschaos.io]
+    resources: [eventtrackerpolicies]
+    verbs: [get, list, watch]
+  - apiGroups: [apps.openshift.io]
+    resources: [deploymentconfigs]
+    verbs: [get, list, watch]
+  - apiGroups: [argoproj.io]
+    # subscriber deney akışlarını küme çapında izler; workflow-controller küme şablonlarını okur
+    resources: [rollouts, workflows, workflowtemplates, cronworkflows, clusterworkflowtemplates]
+    verbs: [get, list, watch]
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: litmus-scope-read
+  labels:
+    app.kubernetes.io/part-of: sre-agent-chaos
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: litmus-scope-read}
+subjects:
+  {{- range .Values.readServiceAccounts }}
+  - {kind: ServiceAccount, name: {{ . }}, namespace: {{ $.Values.litmusNamespace }}}
+  {{- end }}
+{{- range $ns := $targets }}
+{{- range $.Values.bindings }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: litmus-scope-{{ .serviceAccount }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent-chaos
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ .clusterRole }}}
+subjects:
+  - {kind: ServiceAccount, name: {{ .serviceAccount }}, namespace: {{ $.Values.litmusNamespace }}}
+{{- end }}
+{{- end }}

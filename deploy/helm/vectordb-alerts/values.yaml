@@ -1,0 +1,40 @@
+# Eşiklerin gerekçesi: docs/alarmlar.md. Değiştirilirse o tablo da güncellenir.
+
+# VectorDB pod'larını seçen etiket (Prometheus biçiminde: nokta ve eğik çizgi → alt çizgi).
+# Namespace listesi tutulmaz: yeni tenant açılınca alarmlar kendiliğinden kapsar.
+podLabel: {name: app_kubernetes_io_part_of, value: vectordb}
+# PVC doluluğu ayrıca bu altyapı namespace'lerinde de izlenir (Kafka, Prometheus, Loki, Tempo diskleri)
+infraNamespaces: [kafka, monitoring]
+
+# Milvus metrikleri telemetri hattından (VectorDB gateway → Kafka → telemetry-consumer) gelir.
+milvusJob: milvus-metrics
+
+# Ortak etiketler (T0.7'de Alertmanager yönlendirmesi bunlara göre yapılır)
+labels:
+  team: vectordb
+
+thresholds:
+  queryNodeMemoryWarning: 0.80        # oran (working set / limit)
+  queryNodeMemoryCritical: 0.90       # Milvus 0.95'te (qn_mem_high_water_level) yazmayı keser
+  # Bekleme süreleri kısa: bellek hızlı yükselebilir (0.85'te Milvus yazmayı yavaşlatır)
+  queryNodeMemoryWarningFor: 5m
+  queryNodeMemoryCriticalFor: 2m
+  objectStorageMinFails: 5            # milvus_object_storage kontrolüyle aynı
+  objectStorageFailRatio: 0.01
+  searchLatencyP99Ms: 1000
+  requestErrorRatio: 0.05
+  telemetryStaleFor: 10m
+  telemetryLookback: 6h
+  podRestarts15m: 3
+  massRestartComponents: 3   # aynı tenant'ta 10 dk'da yeniden başlayan farklı bileşen
+  massRestartWindow: 10m
+  etcdQuorumFor: 1m
+  pvcUsageWarning: 0.80
+  pvcUsageCritical: 0.90
+  ephemeralLimitBytes: 1073741824     # 1Gi — pod başı ephemeral sınırı
+  ephemeralUsageRatio: 0.80
+  emptyDirLimitPercent: 80            # sizeLimit'li emptyDir'ler (ör. access log 384Mi)
+  kafkaLagMinMessages: 100
+  kafkaLagBaselineFactor: 2
+  kafkaNoIncomingFor: 10m
+  kafkaContinuousTopics: [vectordb_milvus_metrics]

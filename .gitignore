@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Etiketli rapor dışa aktarımı (make decisions-export): küme verisi, repoya girmez
+eval/datasets/
+
+# Demo mode: yerel anahtar ve çıktı
+.env
+demo/out/
+
+# macOS
+.DS_Store

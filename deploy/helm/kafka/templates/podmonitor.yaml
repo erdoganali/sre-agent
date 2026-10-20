@@ -1,0 +1,19 @@
+{{- if and .Values.kafkaExporter.enabled .Values.kafkaExporter.podMonitor }}
+# kafka-exporter metrikleri (consumer lag, topic offset'leri) → Prometheus.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ .Values.clusterName }}-kafka-exporter
+  labels:
+    {{- include "kafka.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      strimzi.io/cluster: {{ .Values.clusterName }}
+      strimzi.io/kind: Kafka
+      strimzi.io/name: {{ .Values.clusterName }}-kafka-exporter
+  podMetricsEndpoints:
+    - port: tcp-prometheus
+      path: /metrics
+      interval: 30s
+{{- end }}

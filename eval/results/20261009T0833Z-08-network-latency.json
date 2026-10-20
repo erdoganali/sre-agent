@@ -1,0 +1,30 @@
+{
+ "scenario": "08-network-latency",
+ "title": "Ağ gecikmesi — uygulama zamanında yanıt veremiyor",
+ "inject_ok": true,
+ "started_at": "2026-10-09T08:33:08.718945+00:00",
+ "alerts_fired_min": {
+  "LabPodNotReady": 5.0
+ },
+ "report_id": "426d91f2aa58",
+ "report_min": 5.3,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   sre-lab temel hâlde: docker.io/library/python:3.14.7-slim, message=merhaba, 1/1 hazır, deney yok",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "probe_timeouts"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "node_events"
+  ]
+ }
+}

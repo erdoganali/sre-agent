@@ -1,0 +1,5 @@
+apiVersion: v2
+name: sre-lab-app
+description: Kontrol ve chaos senaryoları için örnek uygulama (sre-lab namespace'i)
+type: application
+version: 0.2.0

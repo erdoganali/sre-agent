@@ -1,0 +1,1674 @@
+{
+ "uid": "vectordb-milvus",
+ "title": "VectorDB / Milvus",
+ "tags": [
+  "sre-agent",
+  "vectordb",
+  "milvus"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "30s",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "description": "Üretildi: packs/vectordb/dashboards/build.py (make dashboards); elle değiştirme.",
+ "templating": {
+  "list": [
+   {
+    "name": "tenant",
+    "label": "Tenant",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "query": {
+     "query": "label_values(milvus_rootcoord_timestamp{job=\"milvus-metrics\"}, k8s_namespace_name)",
+     "refId": "tenant"
+    },
+    "definition": "label_values(milvus_rootcoord_timestamp{job=\"milvus-metrics\"}, k8s_namespace_name)",
+    "refresh": 2,
+    "sort": 1,
+    "includeAll": false,
+    "multi": false
+   }
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "name": "SRE raporları",
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "iconColor": "red",
+    "target": {
+     "type": "tags",
+     "tags": [
+      "sre-agent",
+      "namespace=$tenant"
+     ],
+     "matchAny": false,
+     "limit": 200
+    }
+   },
+   {
+    "name": "Alarmlar",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "enable": true,
+    "iconColor": "orange",
+    "expr": "ALERTS{alertstate=\"firing\",team=\"vectordb\",namespace=\"$tenant\"} or ALERTS{alertstate=\"firing\",team=\"vectordb\",k8s_namespace_name=\"$tenant\"}",
+    "titleFormat": "{{alertname}}",
+    "textFormat": "{{severity}}",
+    "step": "60s"
+   },
+   {
+    "name": "Chaos deneyleri",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "prometheus"
+    },
+    "enable": true,
+    "iconColor": "purple",
+    "expr": "max by (chaosresult_namespace, chaosresult_name, fault_name) (litmuschaos_awaited_experiments) > 0",
+    "titleFormat": "Chaos: {{fault_name}}",
+    "textFormat": "{{chaosresult_namespace}} / {{chaosresult_name}} (Litmus)",
+    "step": "30s"
+   }
+  ]
+ },
+ "panels": [
+  {
+   "type": "row",
+   "title": "Durum: tenant ayakta mı?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 1
+  },
+  {
+   "type": "stat",
+   "title": "proxy hazır",
+   "description": "**Ne gösterir:** `proxy` rolündeki hazır pod sayısı (Kubernetes).\n\n**Normalde:** 1 ya da daha fazla.\n\n**Kırmızı/turuncuysa:** 0 ise rol çalışmıyor: pod'un olaylarına ve loglarına bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(kube_pod_status_ready{namespace=\"$tenant\",condition=\"true\",pod=~\".*-milvus-proxy-.*\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 2
+  },
+  {
+   "type": "stat",
+   "title": "querynode hazır",
+   "description": "**Ne gösterir:** `querynode` rolündeki hazır pod sayısı (Kubernetes).\n\n**Normalde:** 1 ya da daha fazla.\n\n**Kırmızı/turuncuysa:** 0 ise rol çalışmıyor: pod'un olaylarına ve loglarına bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(kube_pod_status_ready{namespace=\"$tenant\",condition=\"true\",pod=~\".*-milvus-querynode-.*\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 4,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 3
+  },
+  {
+   "type": "stat",
+   "title": "streamingnode hazır",
+   "description": "**Ne gösterir:** `streamingnode` rolündeki hazır pod sayısı (Kubernetes).\n\n**Normalde:** 1 ya da daha fazla.\n\n**Kırmızı/turuncuysa:** 0 ise rol çalışmıyor: pod'un olaylarına ve loglarına bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(kube_pod_status_ready{namespace=\"$tenant\",condition=\"true\",pod=~\".*-milvus-streamingnode-.*\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 4
+  },
+  {
+   "type": "stat",
+   "title": "datanode hazır",
+   "description": "**Ne gösterir:** `datanode` rolündeki hazır pod sayısı (Kubernetes).\n\n**Normalde:** 1 ya da daha fazla.\n\n**Kırmızı/turuncuysa:** 0 ise rol çalışmıyor: pod'un olaylarına ve loglarına bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(kube_pod_status_ready{namespace=\"$tenant\",condition=\"true\",pod=~\".*-milvus-datanode-.*\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 5
+  },
+  {
+   "type": "stat",
+   "title": "mixcoord hazır",
+   "description": "**Ne gösterir:** `mixcoord` rolündeki hazır pod sayısı (Kubernetes).\n\n**Normalde:** 1 ya da daha fazla.\n\n**Kırmızı/turuncuysa:** 0 ise rol çalışmıyor: pod'un olaylarına ve loglarına bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(kube_pod_status_ready{namespace=\"$tenant\",condition=\"true\",pod=~\".*-milvus-mixcoord-.*\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 6
+  },
+  {
+   "type": "stat",
+   "title": "Milvus toplanıyor mu?",
+   "description": "**Ne gösterir:** Tenant ajanının Milvus bileşenlerinden metrik toplayabildiği hedef sayısı (up), hedef ortamdaki yoldan. `milvus_health` kontrolü Milvus nesnesinin durumunu Kubernetes'ten okur; Prometheus'ta karşılığı olmadığı için en yakın gösterge budur.\n\n**Normalde:** Rol sayısı kadar (5).\n\n**Kırmızı/turuncuysa:** Düşükse bir bileşenin /metrics'i okunamıyor ya da pod yok.\n\n**Kontrol:** `milvus_health` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(up{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 1
+       },
+       {
+        "color": "green",
+        "value": 5
+       }
+      ]
+     },
+     "noValue": "veri yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 1,
+    "w": 4,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 7
+  },
+  {
+   "type": "stat",
+   "title": "Yüklü collection",
+   "description": "**Ne gösterir:** Querycoord'un belleğe yüklediği collection sayısı / toplam collection.\n\n**Normalde:** Kullanılan collection'lar yüklü.\n\n**Kırmızı/turuncuysa:** Yüklü sayı düşerse arama 'collection not loaded' hatası verir.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(milvus_querycoord_collection_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "yüklü"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(milvus_rootcoord_collection_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "toplam"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     },
+     "noValue": "veri yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 8
+  },
+  {
+   "type": "stat",
+   "title": "Veri yaşı",
+   "description": "**Ne gösterir:** Tenant'ın Milvus metriklerinin hedef ortamdaki yoldan gelen son örneğinin yaşı.\n\n**Normalde:** 1 dakikanın altında.\n\n**Kırmızı/turuncuysa:** 10 dakikayı geçerse hat kopuk: SRE Platform / Telemetri hattı dashboard'una bak.",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "time() - max(max_over_time(timestamp(milvus_rootcoord_timestamp{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})[6h:1m]))",
+     "legendFormat": ""
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 300
+       },
+       {
+        "color": "red",
+        "value": 600
+       }
+      ]
+     },
+     "noValue": "veri yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 5,
+    "w": 6,
+    "h": 4
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 9
+  },
+  {
+   "type": "row",
+   "title": "Querynode belleği ve yazma kesme eşiği",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 9,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 10
+  },
+  {
+   "type": "timeseries",
+   "title": "Querynode belleği / limit ve yazma kesme eşiği",
+   "description": "**Ne gösterir:** Her querynode'un bellek kullanımının limite oranı ve Milvus'un yazmaları reddettiği eşik (qn_mem_high_water_level, sabit değil metrikten).\n\n**Normalde:** Oran eşiğin epey altında; eşik 0.95.\n\n**Kırmızı/turuncuysa:** Oran eşiğe yaklaşırsa Milvus önce yazmayı yavaşlatır (0.85), sonra reddeder.\n\n**Kontrol:** `milvus_querynode_memory_quota` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (pod) (container_memory_working_set_bytes{namespace=\"$tenant\",container=\"querynode\"}) / max by (pod) (kube_pod_container_resource_limits{namespace=\"$tenant\",container=\"querynode\",resource=\"memory\"})",
+     "legendFormat": "{{pod}}"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(milvus_rootcoord_qn_mem_high_water_level{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "yazma kesme eşiği"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "yazma kesme eşiği"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       },
+       {
+        "id": "custom.lineStyle",
+        "value": {
+         "fill": "dash",
+         "dash": [
+          10,
+          10
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 10,
+    "w": 16,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 11
+  },
+  {
+   "type": "timeseries",
+   "title": "Reddedilen yazmalar",
+   "description": "**Ne gösterir:** Milvus'un kota nedeniyle yazmayı reddettiği olay sayısı (force-deny-writing).\n\n**Normalde:** 0.\n\n**Kırmızı/turuncuysa:** 0'dan büyükse yazmalar reddediliyor: bellek ya da disk kotası dolmuş.\n\n**Kontrol:** `milvus_querynode_memory_quota` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(milvus_rootcoord_force_deny_writing_counter_total{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"}[$__rate_interval]))",
+     "legendFormat": "reddedilen"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 10,
+    "w": 8,
+    "h": 8
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 12
+  },
+  {
+   "type": "row",
+   "title": "Koordinatörler",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 18,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 13
+  },
+  {
+   "type": "stat",
+   "title": "Koordinatörün gördüğü düğümler",
+   "description": "**Ne gösterir:** Querycoord'un gördüğü querynode, datacoord'un gördüğü datanode sayısı.\n\n**Normalde:** Her biri en az 1.\n\n**Kırmızı/turuncuysa:** 0 ise arama ya da yazma yapılamaz.\n\n**Kontrol:** `milvus_coordinators` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(milvus_querycoord_querynode_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "querynode"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max(milvus_datacoord_datanode_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "datanode"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
+     },
+     "noValue": "veri yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 19,
+    "w": 8,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 14
+  },
+  {
+   "type": "timeseries",
+   "title": "Querynode heartbeat yaşı",
+   "description": "**Ne gösterir:** Her querynode'un koordinatöre son heartbeat'inden bu yana geçen süre.\n\n**Normalde:** Birkaç saniye.\n\n**Kırmızı/turuncuysa:** 60 saniyeyi geçerse querynode koordinatörle konuşamıyor.\n\n**Kontrol:** `milvus_coordinators` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "time() - max by (node_id) (milvus_querycoord_last_heartbeat_timestamp{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"}) / 1e9",
+     "legendFormat": "node {{node_id}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 60
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 19,
+    "w": 16,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 15
+  },
+  {
+   "type": "row",
+   "title": "etcd (meta veri)",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 25,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 16
+  },
+  {
+   "type": "stat",
+   "title": "etcd pod'u",
+   "description": "**Ne gösterir:** Tenant'taki etcd pod sayısı ve hazır olmayanlar.\n\n**Normalde:** 3 pod, hazır olmayan yok.\n\n**Kırmızı/turuncuysa:** Hazır olmayan varsa Milvus meta veri okuyup yazamayabilir.\n\n**Kontrol:** `milvus_etcd` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "count(kube_pod_info{namespace=\"$tenant\",pod=~\".*etcd.*\"})",
+     "legendFormat": "pod"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "kube_pod_status_ready{namespace=\"$tenant\",pod=~\".*etcd.*\",condition=\"true\"} == 0",
+     "legendFormat": "hazır değil: {{pod}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     },
+     "noValue": "veri yok"
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 26,
+    "w": 8,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 17
+  },
+  {
+   "type": "timeseries",
+   "title": "etcd yeniden başlama",
+   "description": "**Ne gösterir:** Aralıkta yeniden başlayan etcd pod'ları.\n\n**Normalde:** Boş.\n\n**Kırmızı/turuncuysa:** Yeniden başlama etcd'nin disk, bellek ya da alan kotası sorunu olabilir.\n\n**Kontrol:** `milvus_etcd` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"$tenant\",pod=~\".*etcd.*\"}[$__rate_interval])) > 0",
+     "legendFormat": "{{pod}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 26,
+    "w": 8,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 18
+  },
+  {
+   "type": "timeseries",
+   "title": "Meta işlem hataları",
+   "description": "**Ne gösterir:** Milvus'un etcd'ye başarısız meta işlemleri.\n\n**Normalde:** 0.\n\n**Kırmızı/turuncuysa:** Artıyorsa etcd erişilemiyor ya da alan kotası dolmuş olabilir (etcd metrikleri toplanmıyor; bkz. arıza kataloğu).\n\n**Kontrol:** `milvus_etcd` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(milvus_meta_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",status=\"fail\"}[$__rate_interval]))",
+     "legendFormat": "hata"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 26,
+    "w": 8,
+    "h": 6
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 19
+  },
+  {
+   "type": "row",
+   "title": "Object storage",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 20
+  },
+  {
+   "type": "timeseries",
+   "title": "Object storage işlemleri ve hatalar",
+   "description": "**Ne gösterir:** Milvus'un object storage (GKE'de GCS, hedef ortamda Ceph) işlemleri ve başarısız olanlar.\n\n**Normalde:** Hata 0; işlem sayısı yükle birlikte değişir.\n\n**Kırmızı/turuncuysa:** Hata oranı %1'i geçerse dış depolama sorunlu.\n\n**Kontrol:** `milvus_object_storage` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(internal_storage_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",status=~\"success|fail\"}[$__rate_interval]))",
+     "legendFormat": "işlem"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(increase(internal_storage_op_count_total{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",status=\"fail\"}[$__rate_interval]))",
+     "legendFormat": "hata"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "hata"
+      },
+      "properties": [
+       {
+        "id": "color",
+        "value": {
+         "mode": "fixed",
+         "fixedColor": "red"
+        }
+       }
+      ]
+     }
+    ]
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 33,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 21
+  },
+  {
+   "type": "timeseries",
+   "title": "Object storage p99 gecikme",
+   "description": "**Ne gösterir:** Object storage isteklerinin yüzde 99'unun altında kaldığı süre.\n\n**Normalde:** Yüzlerce milisaniye.\n\n**Kırmızı/turuncuysa:** 2 saniyeyi geçerse sorgulara yansır.\n\n**Kontrol:** `milvus_object_storage` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(internal_storage_request_latency_bucket{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"}[$__rate_interval])))",
+     "legendFormat": "p99"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 2000
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 33,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 22
+  },
+  {
+   "type": "row",
+   "title": "Segment ve compaction birikimi",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 40,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 23
+  },
+  {
+   "type": "timeseries",
+   "title": "Growing / flushing segment",
+   "description": "**Ne gösterir:** Henüz kalıcı hâle gelmemiş (growing, flushing) segment sayısı.\n\n**Normalde:** Yükle dalgalanır, sürekli artmaz. Collection yoksa veri yok.\n\n**Kırmızı/turuncuysa:** 200'ü geçip artıyorsa flush yazma hızına yetişemiyor.\n\n**Kontrol:** `milvus_segment_backlog` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(milvus_datacoord_segment_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",segment_state=~\"Growing|Flushing\"})",
+     "legendFormat": "segment"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 200
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 24
+  },
+  {
+   "type": "timeseries",
+   "title": "Bekleyen compaction",
+   "description": "**Ne gösterir:** Bekleyen ve çalışan compaction görevleri.\n\n**Normalde:** Az ve geçici.\n\n**Kırmızı/turuncuysa:** 50'yi geçip artıyorsa compaction gecikiyor; L0 silme kayıtları da birikir.\n\n**Kontrol:** `milvus_segment_backlog` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(milvus_datacoord_compaction_task_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",task_state=~\"pending|executing\"})",
+     "legendFormat": "görev"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 50
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 41,
+    "w": 12,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 25
+  },
+  {
+   "type": "row",
+   "title": "Proxy: istekler, gecikme, bağlantı",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 48,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 26
+  },
+  {
+   "type": "timeseries",
+   "title": "İstek hızı",
+   "description": "**Ne gösterir:** Proxy'ye saniyede gelen istek. golden_signals_baseline kontrolü bunu geçen haftayla karşılaştırır.\n\n**Normalde:** Kullanıma göre; boşta 0.\n\n**Kırmızı/turuncuysa:** Ani düşüş istemci sorununu, ani artış yük sıçramasını gösterir.\n\n**Kontrol:** `golden_signals_baseline` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(milvus_proxy_req_latency_count{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"}[$__rate_interval]))",
+     "legendFormat": "istek/sn"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 49,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 27
+  },
+  {
+   "type": "timeseries",
+   "title": "Arama p99 gecikmesi",
+   "description": "**Ne gösterir:** Search, HybridSearch ve Query isteklerinin p99 gecikmesi.\n\n**Normalde:** 1000 ms altında.\n\n**Kırmızı/turuncuysa:** 1000 ms'yi 10 dakika aşarsa MilvusSearchLatencyP99High alarmı çalar.\n\n**Kontrol:** `golden_signals_baseline` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.99, sum by (le) (rate(milvus_proxy_req_latency_bucket{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\",function_name=~\"Search|HybridSearch|Query\"}[$__rate_interval])))",
+     "legendFormat": "p99"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1000
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 49,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 28
+  },
+  {
+   "type": "timeseries",
+   "title": "Proxy bağlantı sayısı",
+   "description": "**Ne gösterir:** Proxy başına açık istemci bağlantısı. **Bilinen sorun:** sorgulanan metrik (milvus_proxy_connection_num) Milvus 2.6.6'da yok; panel ve kontrol veri göstermez (arıza kataloğu, bilinen sorunlar).\n\n**Normalde:** Limitin (10000) %80'inin altında.\n\n**Kırmızı/turuncuysa:** Limite yaklaşırsa yeni istemciler reddedilir.\n\n**Kontrol:** `milvus_connections` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (pod) (milvus_proxy_connection_num{job=\"milvus-metrics\",k8s_namespace_name=\"$tenant\"})",
+     "legendFormat": "{{pod}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 49,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 29
+  },
+  {
+   "type": "row",
+   "title": "Pod'lar ve diskler",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 56,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 30
+  },
+  {
+   "type": "timeseries",
+   "title": "Yeniden başlama",
+   "description": "**Ne gösterir:** Aralıkta yeniden başlayan konteynerler.\n\n**Normalde:** Boş.\n\n**Kırmızı/turuncuysa:** Sürekli yeniden başlayan pod için rapora ve pod loglarına bak.\n\n**Kontrol:** `pod_restarts` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"$tenant\"}[$__rate_interval])) > 0",
+     "legendFormat": "{{pod}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 57,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 31
+  },
+  {
+   "type": "timeseries",
+   "title": "PVC doluluğu",
+   "description": "**Ne gösterir:** Tenant'ın kalıcı disklerinin (etcd dahil) doluluk oranı.\n\n**Normalde:** %80 altında.\n\n**Kırmızı/turuncuysa:** %80'i geçerse PVCUsageHigh, %90'ı geçerse PVCUsageCritical çalar.\n\n**Kontrol:** `pvc_usage` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "kubelet_volume_stats_used_bytes{namespace=\"$tenant\"} / kubelet_volume_stats_capacity_bytes{namespace=\"$tenant\"}",
+     "legendFormat": "{{persistentvolumeclaim}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.8
+       },
+       {
+        "color": "red",
+        "value": 0.9
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 57,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 32
+  },
+  {
+   "type": "timeseries",
+   "title": "Ephemeral disk / 1 GiB",
+   "description": "**Ne gösterir:** Pod başına geçici disk kullanımının hedef ortamdaki 1 GiB sınırına oranı.\n\n**Normalde:** %80 altında.\n\n**Kırmızı/turuncuysa:** Sınır aşılırsa pod evict edilir.\n\n**Kontrol:** `ephemeral_storage_usage` (aynı sorgu, packs/vectordb/queries.yaml)",
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (pod_name) (ephemeral_storage_pod_usage{pod_namespace=\"$tenant\"}) / 1073741824",
+     "legendFormat": "{{pod_name}}"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit",
+     "noValue": "veri yok",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 10,
+      "showPoints": "never",
+      "thresholdsStyle": {
+       "mode": "dashed"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 0.8
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    }
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 57,
+    "w": 8,
+    "h": 7
+   },
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "id": 33
+  }
+ ]
+}

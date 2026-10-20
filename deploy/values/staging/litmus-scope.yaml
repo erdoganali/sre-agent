@@ -1,0 +1,11 @@
+# litmus-scope — staging (ADR-026). Deneyler yalnızca bu namespace'lerde çalışır.
+# Yeni namespace eklemek: listeye yaz, `make litmus-scope`.
+namespaces:
+  - sre-lab
+
+# Gerçek tenant ve altyapı namespace'leri: listeye yazılırsa kurulum durur.
+forbiddenNamespaces:
+  - vectordb
+  - kafka
+  - monitoring
+  - sre-agent

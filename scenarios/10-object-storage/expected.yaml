@@ -1,0 +1,26 @@
+id: 10-object-storage
+title: Object storage (GCS) erişilemiyor (loadtest)
+namespace: loadtest
+tool: litmus + milvus-load
+verify: loadtest
+expected:
+  alerts: [MilvusObjectStorageErrors]
+  alert_within_min: 8
+  deferred: Litmus GCS'yi kesemiyor (IP tabanlı engel, GCS çok IP'li); yöntem seçilince açılır
+  requires: [load]   # tenant'ta yazma/okuma trafiği olmadan iz bırakmaz; inject trafiği açar (make load-install)
+  category: vendor_external
+  root_cause: Streamingnode'un GCS'ye (storage.googleapis.com) giden paketlerinin tamamı düşürüldü; WAL ve segment yazımı başarısız.
+  evidence: [milvus_object_storage]
+notes: >-
+  Object storage alarmı (MilvusObjectStorageErrors) T1.8 sonrasında eklendi. Litmus pod-network-loss, %100, 10 dk. Streamingnode yeniden
+  başlarsa VectorDBPodRestarting çalabilir.
+  Denendi (2026-10-04): tenant'ta veri olmadığı için Milvus GCS'ye hiç istek göndermiyor; kesinti hiçbir iz bırakmadı
+  (storage hatası, WAL işlemi, restart yok). Anlamlı olması için tenant'a yük (yazma/okuma) gerekir; test kullanıcısı
+  kararına bağlı (T1.8 notu).
+  Yük üreticisiyle: inject önce ayrı küçük collection'a (sre_load_traffic) sürekli yazma + arama açar, sonra GCS'yi keser;
+  cleanup ikisini de kapatır.
+  Denendi (2026-10-09, trafikle): Litmus pod-network-loss (DESTINATION_HOSTS=storage.googleapis.com, %100, 10 dk)
+  GCS'yi kesmedi: 20 dk'da woodpecker dosya işlemleri 1260 sync / 0 hata, internal_storage_op_count_total
+  fail=0; streamingnode günlüğünde yalnız birkaç "Failed to stat block object" uyarısı. Neden: araç host adını
+  enjeksiyon anında IP'ye çevirir, GCS ise çok sayıda (anycast) IP kullanır. Alarm çalmadı. Enjeksiyon yöntemi
+  değişmeli (T1.10).

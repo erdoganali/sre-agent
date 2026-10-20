@@ -1,0 +1,4 @@
+- Milvus tenant'ı bir namespace'tir; pod adları cus-<tenant>-milvus-<bileşen>-... ve etcd için cus-<tenant>-etcd-<n>.
+- VectorDBPodRestarting / CrashLooping alarmlarında önce `topology` (olay anı = alarmın başlangıcı): kaybedilen node'da hangi bileşenler vardı, etcd üyeleri nerede çalışıyordu. Üç etcd üyesinden ikisi aynı anda kaybedilirse etcd çoğunluğu gider ve bütün bileşenler etkilenir.
+- Sonra gerekirse `run_check`: milvus_health (CR durumu), milvus_etcd, milvus_coordinators, milvus_object_storage.
+- Restart ve OOMKilled bir sonuçtur; başlatan olayı (node kaybı, değişiklik, kota) ayrıca ara.

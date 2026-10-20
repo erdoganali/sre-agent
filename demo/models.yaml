@@ -1,0 +1,21 @@
+# Demo mode model kataloğu (ADR-027 biçimi): bütün roller tek OpenAI uyumlu modelde.
+# Değerler .env'den gelir (bkz. .env.example).
+
+roles:
+  specialist:
+    model: demo
+    max_tokens: 4096
+  synthesize:
+    model: demo
+    max_tokens: 8192
+
+models:
+  demo:
+    name: "${DEMO_MODEL:gpt-4.1-mini}"
+    url: "${DEMO_MODEL_URL:https://api.openai.com/v1/chat/completions}"
+    max_context_tokens: 128000
+    retries: 4
+    max_concurrency: 2
+    headers:
+      Authorization: "Bearer ${DEMO_MODEL_KEY:}"
+    sampling_params: {temperature: 0.0}

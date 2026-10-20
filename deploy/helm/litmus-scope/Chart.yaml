@@ -1,0 +1,5 @@
+apiVersion: v2
+name: litmus-scope
+description: Litmus ajanının yetkisini namespace'lerle sınırlar, deney metriklerini Prometheus'a açar (ADR-026)
+type: application
+version: 0.2.0

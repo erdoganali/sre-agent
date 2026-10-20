@@ -1,0 +1,12 @@
+id: 05-pending
+title: Karşılanamayacak kaynak isteği — Pending
+namespace: sre-lab
+tool: helm
+verify: lab
+expected:
+  alerts: [LabPodUnschedulable]
+  alert_within_min: 7
+  category: capacity_performance
+  root_cause: Pod 500Gi bellek istiyor; hiçbir node karşılayamıyor (FailedScheduling).
+  evidence: [pending_pods, recent_rollouts]
+notes: Eski pod çalışmaya devam eder; yeni pod Pending kalır. Alarm 5 dk bekler (pending_pods eşiğiyle aynı).

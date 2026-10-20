@@ -1,0 +1,5 @@
+apiVersion: v2
+name: pack-dashboards
+description: Domain paketlerinin Grafana dashboard'ları (paket dizinindeki JSON, --set-file ile verilir)
+type: application
+version: 0.1.0

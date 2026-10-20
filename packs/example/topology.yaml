@@ -1,0 +1,17 @@
+# Components (pod-name regex), what they do, what they depend on. The product MCP server's
+# `topology` tool joins this with live pod placement.
+components:
+  api:
+    pods: "^orders-api-"
+    role: HTTP API; reads and writes orders in Postgres
+    depends: [postgres]
+  worker:
+    pods: "^orders-worker-"
+    role: background jobs (payment callbacks)
+    depends: [postgres, payment_provider]
+
+externals:
+  postgres:
+    role: orders database (connection pool of 50 per API pod)
+  payment_provider:
+    role: third-party payment API

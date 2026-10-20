@@ -1,0 +1,69 @@
+{{- define "milvus-load.env" -}}
+- {name: MILVUS_URI, valueFrom: {secretKeyRef: {name: {{ .Values.secret }}, key: uri}}}
+- {name: MILVUS_USER, valueFrom: {secretKeyRef: {name: {{ .Values.secret }}, key: username}}}
+- {name: MILVUS_PASSWORD, valueFrom: {secretKeyRef: {name: {{ .Values.secret }}, key: password}}}
+- {name: LOAD_COLLECTION, value: {{ .Values.collection | quote }}}
+- {name: LOAD_DIM, value: {{ .Values.dim | quote }}}
+- {name: LOAD_ROWS, value: {{ .Values.rows | quote }}}
+- {name: LOAD_BATCH, value: {{ .Values.batch | quote }}}
+- {name: LOAD_INDEX, value: {{ .Values.index | quote }}}
+- {name: LOAD_SHARDS, value: {{ .Values.shards | quote }}}
+- {name: LOAD_TRAFFIC_INTERVAL_S, value: {{ .Values.traffic.intervalSeconds | quote }}}
+{{- end }}
+{{- define "milvus-load.container" -}}
+image: "{{ .Values.image.repository }}:{{ required "image.tag gerekli (make load-image)" .Values.image.tag }}"
+env:
+  {{- include "milvus-load.env" . | nindent 2 }}
+resources:
+  {{- toYaml .Values.resources | nindent 2 }}
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities: {drop: [ALL]}
+{{- end }}
+{{- range $action := list "fill" "load" "release" "status" "drop" }}
+---
+# Tek seferlik iş şablonu: kubectl create job --from=cronjob/milvus-load-{{ $action }} <ad>
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: milvus-load-{{ $action }}
+  labels: {app.kubernetes.io/part-of: sre-agent-chaos, app.kubernetes.io/name: milvus-load}
+spec:
+  schedule: "0 0 31 2 *"   # hiç çalışmaz; yalnızca şablon
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels: {app.kubernetes.io/part-of: sre-agent-chaos, app.kubernetes.io/name: milvus-load}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          containers:
+            - name: load
+              args: [{{ $action }}]
+              {{- include "milvus-load.container" $ | nindent 14 }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milvus-load-traffic
+  labels: {app.kubernetes.io/part-of: sre-agent-chaos, app.kubernetes.io/name: milvus-load-traffic}
+spec:
+  replicas: {{ if .Values.traffic.enabled }}1{{ else }}0{{ end }}
+  selector:
+    matchLabels: {app.kubernetes.io/name: milvus-load-traffic}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/part-of: sre-agent-chaos, app.kubernetes.io/name: milvus-load-traffic}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: traffic
+          args: [traffic]
+          {{- include "milvus-load.container" . | nindent 10 }}

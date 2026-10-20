@@ -1,0 +1,22 @@
+id: 12-etcd-quorum-loss
+title: etcd çoğunluk kaybı — 3 üyeden 2'si ağdan kesildi
+namespace: pilot
+tool: litmus
+verify: tenant:pilot
+expected:
+  alerts: [MilvusEtcdQuorumLost, VectorDBTenantMassRestart]
+  alert_within_min: 5    # çoğunluk alarmı 1 dk bekler; bileşenler lease dolunca birlikte yeniden başlar
+  category: database
+  root_cause: >-
+    Tenant'ın etcd'sinde 3 üyeden 2'sine ulaşılamadı; etcd çoğunluğu kaybetti, Milvus bileşenlerinin
+    oturumları (lease) doldu ve süreçler yeniden başladı. Node'lar sağlıklı; başlatan olay etcd'nin kendisi.
+  evidence: [milvus_etcd, probe_timeouts]
+notes: >-
+  Golden set v1, senaryo 1 (ADR-033 eki). 9 Ekim'deki gerçek olayın (iki spot node kaybı, üç etcd üyesi bu iki
+  node'da) node kaybı olmadan üretilmiş hâli: ajanın "etcd çoğunluğu" ile "node kaybı"nı ayırması beklenir.
+  İlk koşu (2026-10-18) alarm üretmedi: her bileşen yalnız 1 kez yeniden başladı, restart alarmı
+  15 dk'da 3 istiyordu. MilvusEtcdQuorumLost ve VectorDBTenantMassRestart bunun için yazıldı; ikinci
+  koşuda ikisi de çaldı. Pod silmek yerine ağ kesilir: silinen pod saniyeler içinde geri gelir ve çoğunluk kaybı oturum süresinden kısa
+  kalır. Beklenen Milvus davranışı: "the session is expired" ve çıkış kodu 80 (milvus#49530).
+  Hedef pilot (cus-pilot): loadtest tenant'ı yok; kullanıcı onayıyla (2026-10-18) pilot kullanılıyor.
+  Başka bir tenant için engine.yaml'daki namespace ve etiket, expected.yaml'daki namespace değiştirilir.

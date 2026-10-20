@@ -1,0 +1,32 @@
+{
+ "scenario": "03-image-pull",
+ "title": "Yanlış image etiketi — ImagePullBackOff",
+ "inject_ok": true,
+ "started_at": "2026-10-08T19:43:59.551206+00:00",
+ "alerts_fired_min": {
+  "LabContainerWaiting": 6.6
+ },
+ "report_id": "7afb643160b6",
+ "report_min": 6.9,
+ "blind_spots": [],
+ "labeled": true,
+ "cleanup_ok": true,
+ "cleanup": "OK   sre-lab temel hâlde: docker.io/library/python:3.14.7-slim, message=merhaba, 1/1 hazır, deney yok",
+ "outcome": {
+  "verdict": "geçti",
+  "reasons": [
+   "alarm, kanıt ve kategori beklendiği gibi"
+  ],
+  "alerts_missing": [],
+  "evidence_found": [
+   "recent_rollouts"
+  ],
+  "evidence_missing": [],
+  "category_found": true,
+  "noise": [
+   "helm_release_changes",
+   "node_conditions",
+   "node_events"
+  ]
+ }
+}

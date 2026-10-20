@@ -1,0 +1,24 @@
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: s08-network-latency
+  namespace: sre-lab
+  labels: {app.kubernetes.io/part-of: sre-agent-chaos, sre-agent/scenario: 08-network-latency}
+spec:
+  engineState: active
+  chaosServiceAccount: litmus-admin
+  appinfo:
+    appns: sre-lab
+    applabel: app.kubernetes.io/name=sre-lab-app
+    appkind: deployment
+  jobCleanUpPolicy: delete
+  experiments:
+    - name: pod-network-latency
+      spec:
+        components:
+          env:
+            - {name: TARGET_CONTAINER, value: app}
+            - {name: NETWORK_LATENCY, value: "2000"}
+            - {name: TOTAL_CHAOS_DURATION, value: "420"}
+            - {name: CONTAINER_RUNTIME, value: containerd}
+            - {name: SOCKET_PATH, value: /run/containerd/containerd.sock}

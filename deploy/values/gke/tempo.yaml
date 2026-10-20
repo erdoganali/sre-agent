@@ -1,0 +1,32 @@
+# Tempo (grafana-community/tempo 3.0.0, Tempo 3.0.3) — monolitik, yerel depolama. GKE.
+# S3 uyumlu nesne deposu kullanılacaksa tempo.storage buradan değiştirilir.
+# Alıcılar chart varsayılanı (OTLP 4317/4318 + Jaeger); T0.5'teki gateway OTLP kullanır.
+
+tempo:
+  # Dışarıya çağrı yok (air-gapped).
+  reportingEnabled: false
+  retention: 72h
+  # Servis haritası ve span metrikleri → Prometheus (remote write).
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://monitoring-kube-prometheus-prometheus.monitoring:9090/api/v1/write
+    storage:
+      path: /var/tempo/generator
+  overrides:
+    defaults:
+      metrics_generator:
+        processors: [service-graphs, span-metrics]
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 2Gi
+
+persistence:
+  enabled: true
+  size: 10Gi
+
+# kube-prometheus-stack tüm ServiceMonitor'ları okuyor.
+serviceMonitor:
+  enabled: true

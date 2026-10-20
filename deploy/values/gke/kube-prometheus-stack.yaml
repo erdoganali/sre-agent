@@ -1,0 +1,199 @@
+# kube-prometheus-stack — GKE (example-gke). Sıfırdan kurulum (ADR-012).
+
+# GKE yönetilen kontrol düzlemi: bu bileşenler scrape edilemez.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+# kube-proxy metrikleri node'da 127.0.0.1'e bağlı.
+kubeProxy:
+  enabled: false
+# GKE CoreDNS değil kube-dns kullanıyor.
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: true
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - prometheus.example.internal
+    paths:
+      - /
+    pathType: Prefix
+  prometheusSpec:
+    retention: 10d
+    # telemetry-consumer (VectorDB metrikleri) ve Tempo metrics-generator remote write ile yazar.
+    enableRemoteWriteReceiver: true
+    # Kafka'da aynı serinin örnekleri partition'lara dağılıyor (VectorDB anahtarsız yazar) ve
+    # telemetry-consumer kesintiden sonra birikeni geriden okur: 2 saate kadar geç gelen örnek kabul
+    # edilir, kesinti bu süreyi aşmazsa veri kaybolmaz (T1.14 testi: 12 dk kesintide ~18K nokta kayboldu).
+    tsdb:
+      outOfOrderTimeWindow: 2h
+    # release etiketi aranmaz: tüm namespace'lerdeki monitor ve kurallar okunur.
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+alertmanager:
+  # Yapılandırmanın tamamı burada (chart varsayılanıyla birleşmez). Route/grouping/inhibition: docs/alarmlar.md
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      # Aynı alarmın farklı pod/topic/PVC örnekleri tek bildirimde birleşir.
+      group_by: [alertname, severity]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        # Watchdog: hat canlılığı; sre-agent rapor üretmez, son geliş zamanını metrik yapar (T1.14)
+        - receiver: sre-agent
+          matchers: ['alertname = "Watchdog"']
+          group_wait: 0s
+          group_interval: 1m
+          repeat_interval: 5m
+        - receiver: "null"
+          matchers: ['alertname = "InfoInhibitor"']
+        - receiver: sre-agent
+          matchers: ['team = "vectordb"']
+        # Deney uygulaması (chaos senaryoları, T1.8): deploy/helm/sre-lab-alerts
+        - receiver: sre-agent
+          matchers: ['team = "sre-lab"']
+    inhibit_rules:
+      # --- kube-prometheus-stack varsayılanları ---
+      - source_matchers: ['severity = critical']
+        target_matchers: ['severity =~ warning|info']
+        equal: [namespace, alertname]
+      - source_matchers: ['severity = warning']
+        target_matchers: ['severity = info']
+        equal: [namespace, alertname]
+      - source_matchers: ['alertname = InfoInhibitor']
+        target_matchers: ['severity = info']
+        equal: [namespace]
+      - target_matchers: ['alertname = InfoInhibitor']
+      # --- VectorDB: aynı nesnede critical varken warning bastırılır ---
+      - source_matchers: ['alertname = MilvusQueryNodeMemoryNearQuota']
+        target_matchers: ['alertname = MilvusQueryNodeMemoryHigh']
+        equal: [namespace, pod]
+      - source_matchers: ['alertname = PVCUsageCritical']
+        target_matchers: ['alertname = PVCUsageHigh']
+        equal: [namespace, persistentvolumeclaim]
+      # --- VectorDB: nedeni bilinen sonuçlar bastırılır ---
+      # Gateway Kafka'ya yazmıyorsa Milvus metriğinin gelmemesi beklenen sonuçtur.
+      - source_matchers: ['alertname = KafkaTopicNoIncomingData']
+        target_matchers: ['alertname = MilvusTenantTelemetryStale']
+      # Yazma zaten reddediliyorsa bellek uyarısı ek bilgi taşımaz.
+      - source_matchers: ['alertname = MilvusWriteDenied']
+        target_matchers: ['alertname = MilvusQueryNodeMemoryHigh']
+    receivers:
+      - name: "null"
+      # Rapor servisi (T1.7). T0.7'deki geçici alert-webhook'un yerine (ADR-022).
+      - name: sre-agent
+        webhook_configs:
+          - url: http://sre-agent.sre-agent.svc:8080/alerts
+            send_resolved: true
+    templates:
+      - /etc/alertmanager/config/*.tmpl
+
+grafana:
+  # Admin bilgisi repoda değil; Secret kurulumdan önce elle oluşturulur (Makefile: grafana-admin-secret).
+  admin:
+    existingSecret: grafana-admin
+  # RWO PVC ile RollingUpdate takılır.
+  deploymentStrategy:
+    type: Recreate
+  persistence:
+    enabled: true
+    size: 10Gi
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    hosts:
+      - grafana.example.internal
+  # SRE Agent rapor deposu: salt okunur kullanıcı (make db-secrets → grafana-postgres-ro)
+  envFromSecrets:
+    - name: grafana-postgres-ro
+      optional: true
+  grafana.ini:
+    server:
+      domain: grafana.example.internal
+    # Dışarıya çağrı yok (air-gapped).
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+      check_for_plugin_updates: false
+    news:
+      news_feed_enabled: false
+  # Loki ve Tempo (T0.4). Prometheus datasource'u chart'tan gelir (uid: prometheus).
+  additionalDataSources:
+    - name: SRE Agent raporları
+      uid: sre-agent-db
+      type: grafana-postgresql-datasource
+      access: proxy
+      url: postgres.sre-agent.svc:5432
+      user: grafana_ro
+      jsonData:
+        database: sre_agent
+        sslmode: disable
+        postgresVersion: 1800
+        maxOpenConns: 5
+      secureJsonData:
+        password: $GRAFANA_PG_RO_PASSWORD
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc:3100
+      jsonData:
+        maxLines: 1000
+        # Log satırındaki trace_id → Tempo
+        derivedFields:
+          - name: TraceID
+            matcherRegex: '(?:trace_id|traceID|traceid)["=: ]+(\w+)'
+            url: '$${__value.raw}'
+            datasourceUid: tempo
+            urlDisplayLabel: Trace
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.monitoring.svc:3200
+      jsonData:
+        # Span → aynı trace'in logları
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: -5m
+          spanEndTimeShift: 5m
+          filterByTraceID: true
+        # Servis haritası metrikleri (metrics-generator T0.5'te)
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        lokiSearch:
+          datasourceUid: loki
+
+# Pod etiketleri metriğe taşınır (kube_pod_labels): VectorDB alarmları pod'ları namespace listesiyle
+# değil app.kubernetes.io/part-of=vectordb etiketiyle seçer; yeni tenant kendiliğinden kapsanır.
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - pods=[app.kubernetes.io/part-of,app.kubernetes.io/name,app.kubernetes.io/instance,app.kubernetes.io/component]

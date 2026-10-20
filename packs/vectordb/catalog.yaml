@@ -1,0 +1,773 @@
+# VectorDB / Milvus arıza kataloğu (T1.15). Kaynak bu dosya; catalog.md `make catalog` ile üretilir.
+# Doğrulama: `make test` (bağlantılar, envanter) ve `make catalog-check` (canlı Prometheus, salt okunur).
+# Metrik adları son eksiz yazılır (_total, _bucket, _sum yok); envanterdeki biçimde.
+version: 1
+title: VectorDB / Milvus arıza kataloğu
+intro: |
+  Milvus 2.6 (kurulu sürüm 2.6.25; katalog ilk 2.6.6 için yazıldı) ve VectorDB platformu için ne bozulabilir,
+  nasıl görünür, bugün kim yakalar. Üç katman: Milvus motoru, VectorDB platformu ve operatörler (tenant yaşam
+  döngüsü, sırlar, ağ politikası), ortam (GKE; hedef hedef ortamda OpenShift ve Ceph). Her maddenin etki alanı ayrı
+  yazılır: ortak anahtar ya da operatör arızası bütün tenant'ları birden vurur.
+
+  2.6'da Woodpecker WAL metadata'sını etcd'ye, verisini object storage'a yazar: etcd ve object storage artık yazma
+  yolunun üzerinde; ikisindeki sorun yazmayı doğrudan durdurur.
+
+  Eşikler `quotaAndLimits` varsayılanları. Metrik adları v2.6.6 kaynağından ve kümedeki envanterden doğrulandı;
+  2.6.25 için `make catalog-check` ile yeniden doğrulanmalı. `make catalog-check` her metriğin son 7 günde beyan
+  edilen yoldan gelip gelmediğine bakar: Milvus birçok metriği ilk istekte oluşturur ve pod yeniden başlayınca bu
+  seriler kaybolur.
+
+  Kaynaklar (2026-10-15 derlemesi): VectorDB belgeleri (`vectordb-platform-helm/docs`, `teslim/KURULUM.md`,
+  `milvus-tenant-operator` CHANGELOG ve commit geçmişi, `milvus-zilliz-operator/docs/arch`), Milvus 2.6 sürüm
+  notları ve GitHub issue'ları, GKE spot ve OpenShift belgeleri.
+pipeline_selector: '{job="milvus-metrics"}'
+alerts_source: deploy/helm/vectordb-alerts/templates/rules.yaml
+inventory: catalog-metrics.txt
+dashboards: [dashboards/milvus.json]
+
+areas:
+  yazma: Yazmanın engellenmesi (quotaAndLimits)
+  etcd: etcd (meta veri)
+  yukleme: Collection yükleme ve sorgu düğümleri
+  arkaplan: Compaction ve index
+  depolama: Object storage
+  disk: Lokal disk ve ephemeral
+  proxy: "Proxy: istek hataları, gecikme, bağlantı"
+  wal: Streaming ve WAL (2.6)
+  koordinator: Koordinatörler
+  yedek: Yedek, geri yükleme ve platform işleri
+  hat: Telemetri hattı
+  operator: Operatörler (tenant-operator, milvus-operator)
+  proxypod: Proxy pod'u ve tenant ajanları (sidecar, metrics-agent)
+  platform: Platform ve tenant yaşam döngüsü
+
+known_issues:
+  - "`milvus_connections` kontrolü `milvus_proxy_connection_num` metriğini sorguluyor; bu metrik Milvus 2.6.6'da yok (kaynakta tanımlı değil). Kontrol bu yüzden hep \"veri yok\" döner. Düzeltme: bağlantı sayısının 2.6'daki karşılığını bulmak ya da kontrolü kaldırmak (ayrı iş)."
+  - "etcd'nin kendi metrikleri (`etcd_mvcc_db_total_size_in_bytes`, `etcd_server_quota_backend_bytes`) hiçbir yoldan toplanmıyor. Tenant metrics-agent yalnızca Milvus pod'larının 9091 portunu topluyor. Operatörün açtığı PodMonitor'da etcd'nin `client` (2379) portu tanımlı ama selector'ı yalnız `app.kubernetes.io/name=milvus` pod'larını seçiyor, etcd pod'ları (`name=etcd`) seçilmiyor (2026-10-19, staging ve GKE). Kümede görülen `etcd_*` metrikleri `job=apiserver`'dan, Kubernetes'in kendi etcd'sinden gelir. etcd alan kotası bu yüzden önceden görülemez; ancak sonucu (meta işlem hataları, çöken koordinatörler) görülür. Öneri VectorDB'a bildirilmeden değişiklik yapılmaz (ADR-014)."
+  - "Alarm kuralları pod'ları `app.kubernetes.io/part-of=vectordb` etiketiyle seçer (2026-10-18, eskiden elle tutulan tenant listesi); etiketi olmayan VectorDB pod'u (ör. `vectordb-docs`) kapsanmaz."
+  - "Milvus'un yedek ve geri yükleme nesnelerinin (MilvusBackup, MilvusRestore) durumu sre-agent'ın okuma yetkisinde değil (yalnızca `milvuses` ekli). Yedek başarısızlığını görmek için paketin `rbac-values.yaml`'ına eklenmeleri gerekir."
+unverified_check_metrics:
+  - milvus_proxy_connection_num
+
+entries:
+  # ------------------------------------------------------------------ yazma
+  - id: yazma-querynode-bellek
+    area: yazma
+    title: Querynode belleği nedeniyle yazma kesilmesi
+    symptom: >-
+      Insert/upsert/delete istekleri "deny to write, reason: memory quota exhausted" hatasıyla reddedilir. Öncesinde
+      bellek düşük su seviyesini geçince yazma hızı kısılır. Arama çalışmaya devam eder.
+    signals:
+      - {metric: milvus_rootcoord_force_deny_writing_counter, path: pipeline, note: "Artışı = yazma reddedildi. MilvusWriteDenied bunu izler"}
+      - {metric: milvus_rootcoord_qn_mem_high_water_level, path: pipeline, note: "Yapılandırılmış yüksek su seviyesi (0.95); eşik sabit yazılmaz, buradan okunur"}
+      - {metric: container_memory_working_set_bytes, path: platform, note: "querynode konteynerinin kullanımı; limite oranı alarmın temeli"}
+      - {metric: kube_pod_container_resource_limits, path: platform, note: "querynode bellek limiti"}
+      - {metric: milvus_rootcoord_quota_states, path: source, note: "Kota durumu (ör. MemoryQuotaExceeded); yalnızca bir kota devredeyken oluşur"}
+      - {metric: milvus_rootcoord_rate_limit_ratio, path: source, note: "Düşük su seviyesinden sonra yazma hızının kısılma oranı"}
+    threshold: "Düşük su seviyesi 0.85 (hız kısılır), yüksek su seviyesi 0.95 (yazma reddedilir). Alarmlarımız 0.80 (warning, 5 dk) ve 0.90 (critical, 2 dk); kontrol 0.80'de anomali sayar."
+    threshold_source: "quotaAndLimits.limitWriting.memProtection.queryNodeMemory{Low,High}WaterLevel"
+    alerts: [MilvusQueryNodeMemoryHigh, MilvusQueryNodeMemoryNearQuota, MilvusWriteDenied]
+    checks: [milvus_querynode_memory_quota, memory_near_limit, golden_signals_baseline]
+    scenario: 06-milvus-memory
+    panel: "Querynode belleği / limit ve yazma kesme eşiği"
+    category: database
+    notes: >-
+      Milvus kendi bellek ölçümünü kullanır (işlemin kullandığı / konteyner limiti); konteyner metriğiyle birkaç puan
+      fark olabilir. Querynode'lar arasında dengesiz yük tek bir node'u eşiğe taşıyabilir.
+    refs:
+      - "[#33913](https://github.com/milvus-io/milvus/issues/33913)"
+      - "[#25836](https://github.com/milvus-io/milvus/issues/25836)"
+
+  - id: yazma-streamingnode-bellek
+    area: yazma
+    title: Datanode/streamingnode belleği nedeniyle yazma kesilmesi
+    symptom: >-
+      Aynı "memory quota exhausted" hatası, bu kez yazma yolundaki düğümün (2.6'da streamingnode) belleği nedeniyle.
+      Querynode belleği normal görünürken yazma reddedilir.
+    signals:
+      - {metric: milvus_rootcoord_force_deny_writing_counter, path: pipeline, note: "Hangi düğümün tetiklediğini söylemez"}
+      - {metric: container_memory_working_set_bytes, path: platform, note: "streamingnode ve datanode konteynerleri"}
+      - {metric: milvus_wal_growing_segment_hwm_bytes, path: pipeline, note: "Büyüyen segment belleği yüksek su seviyesi"}
+      - {metric: milvus_wal_growing_segment_lwm_bytes, path: pipeline, note: "Düşük su seviyesi"}
+    threshold: "0.85 / 0.95"
+    threshold_source: "quotaAndLimits.limitWriting.memProtection.dataNodeMemory{Low,High}WaterLevel"
+    alerts: [MilvusWriteDenied]
+    checks: [memory_near_limit]
+    panel: "Reddedilen yazmalar"
+    category: database
+    notes: >-
+      Bellek alarmımız yalnızca querynode'a bakıyor; streamingnode ve datanode için karşılığı yok. MilvusWriteDenied
+      sonucu yakalar ama nedeni ayırt etmez.
+    refs:
+      - "[#50877](https://github.com/milvus-io/milvus/issues/50877)"
+
+  - id: yazma-time-tick
+    area: yazma
+    title: Time tick gecikmesi
+    symptom: >-
+      Aramalar en yeni veriyi görmez ya da tutarlılık beklerken zaman aşımına düşer. Koruma açıksa gecikme eşiği
+      aşılınca yazma da reddedilir.
+    signals:
+      - {metric: milvus_rootcoord_time_tick_delay, path: source, note: "Düğüm başına time tick gecikmesi"}
+      - {metric: milvus_rootcoord_produce_tt_lag_ms, path: source}
+      - {metric: milvus_wal_last_confirmed_time_tick, path: pipeline, note: "WAL'da onaylanan son time tick"}
+      - {metric: milvus_wal_last_allocated_time_tick, path: pipeline, note: "Ayrılan son time tick; ikisi arasındaki fark birikim"}
+    threshold: "Koruma varsayılan olarak kapalı (maxTimeTickDelay 1200 sn)."
+    threshold_source: "quotaAndLimits.limitWriting.ttProtection"
+    category: database
+    notes: "Koruma kapalı olduğu için yazma kesilmez; belirti arama tarafında görülür."
+
+  - id: yazma-l0-delete
+    area: yazma
+    title: L0 delete birikimi
+    symptom: >-
+      Çok sayıda delete sonrası L0 segmentlerde silme kayıtları birikir; aramalar yavaşlar, bellek büyür. Koruma
+      açıksa yazma reddedilir.
+    signals:
+      - {metric: milvus_datacoord_l0_delete_entries_num, path: source, note: "L0'daki silme kaydı sayısı"}
+      - {metric: milvus_datacoord_store_level0_segment_size, path: source}
+      - {metric: milvus_querynode_delete_buffer_row_num, path: source, note: "Querynode silme tamponu"}
+      - {metric: milvus_querynode_delete_buffer_size, path: source}
+      - {metric: milvus_wal_delete_rows, path: pipeline, note: "WAL'a yazılan silme satırları (akış hızı)"}
+    threshold: "Korumalar varsayılan olarak kapalı. Açılırsa L0: 30M / 50M satır; silme tamponu: 32768 / 65536 satır."
+    threshold_source: "quotaAndLimits.limitWriting.{l0SegmentsRowCountProtection,deleteBufferRowCountProtection,deleteBufferSizeProtection}"
+    category: database
+    notes: "L0 birikimini compaction eritir; compaction gecikirse ikisi birlikte görülür (arkaplan-compaction)."
+
+  - id: yazma-disk-kotasi
+    area: yazma
+    title: Disk kotası nedeniyle yazma kesilmesi
+    symptom: Object storage'daki toplam veri kotayı aşarsa bütün DML istekleri reddedilir.
+    signals:
+      - {metric: milvus_rootcoord_disk_quota, path: pipeline, note: "Kotaya sayılan kullanım"}
+      - {metric: milvus_datacoord_stored_binlog_size, path: source, note: "Collection başına saklanan veri"}
+      - {metric: milvus_rootcoord_force_deny_writing_counter, path: pipeline}
+    threshold: "Koruma açık ama kota tanımsız (diskQuota -1): varsayılan kurulumda tetiklenmez."
+    threshold_source: "quotaAndLimits.limitWriting.diskProtection"
+    alerts: [MilvusWriteDenied]
+    panel: "Reddedilen yazmalar"
+    category: database
+    notes: "Hedef ortamda tenant başına kota tanımlanırsa bu satır önem kazanır; eşik o zaman values'tan okunmalı."
+
+  # ------------------------------------------------------------------ etcd
+  - id: etcd-alan-kotasi
+    area: etcd
+    title: etcd alan kotasının dolması
+    symptom: >-
+      etcd "mvcc: database space exceeded" (NOSPACE) alarmına girer, meta veri yazılamaz. DDL ve yükleme işlemleri
+      hata verir; koordinatörler yeniden başlarken açılamaz, CrashLoopBackOff.
+    signals:
+      - {metric: etcd_mvcc_db_total_size_in_bytes, path: none, note: "etcd toplanmıyor"}
+      - {metric: etcd_server_quota_backend_bytes, path: none, note: "etcd toplanmıyor"}
+      - {metric: milvus_meta_op_count, path: pipeline, note: "status=\"fail\" artışı: meta işlemleri başarısız"}
+      - {metric: milvus_meta_kv_size, path: pipeline, note: "Meta işlem boyutları"}
+      - {metric: kubelet_volume_stats_used_bytes, path: platform, note: "etcd diskinin doluluğu (kota değil, disk)"}
+    threshold: "etcd varsayılan kotası 2 GiB (--quota-backend-bytes)."
+    threshold_source: "etcd başlatma parametresi (VectorDB şablonu)"
+    alerts: [PVCUsageHigh, PVCUsageCritical, VectorDBPodCrashLooping]
+    checks: [milvus_etcd]
+    panel: "Meta işlem hataları"
+    category: database
+    notes: >-
+      PVC alarmları diskin dolmasını görür, etcd kotasını görmez: kota diskten önce dolabilir. etcd metrikleri için
+      öneri: tenant ajanının etcd'yi de toplaması (VectorDB'a bildirilecek).
+    refs:
+      - "[#43582](https://github.com/milvus-io/milvus/issues/43582)"
+      - "[#44614](https://github.com/milvus-io/milvus/issues/44614)"
+
+  - id: etcd-erisilemez
+    area: etcd
+    title: etcd'ye erişilemiyor
+    symptom: etcd pod'ları hazır değil ya da lider seçilemiyor; Milvus meta işlemleri zaman aşımına düşer.
+    signals:
+      - {metric: kube_pod_status_ready, path: platform, note: "etcd pod'ları"}
+      - {metric: kube_pod_container_status_restarts_total, path: platform}
+      - {metric: milvus_meta_op_count, path: pipeline, note: "status=\"fail\""}
+      - {metric: milvus_meta_request_latency, path: pipeline}
+    alerts: [MilvusEtcdQuorumLost, VectorDBTenantMassRestart, VectorDBPodRestarting]
+    checks: [milvus_etcd, probe_timeouts, pod_restarts]
+    scenario: 12-etcd-quorum-loss
+    panel: "etcd pod'u"
+    category: database
+
+  # ------------------------------------------------------------------ yükleme
+  - id: yukleme-basarisiz
+    area: yukleme
+    title: Collection yüklenemiyor
+    symptom: >-
+      Arama "collection not loaded" hatası döner ya da yükleme bitmez. Genellikle querynode belleği ya da diski
+      yetmez, index dosyaları okunamaz.
+    signals:
+      - {metric: milvus_querycoord_load_req_count, path: source, note: "status=\"fail\""}
+      - {metric: milvus_querycoord_load_latency, path: source}
+      - {metric: milvus_querycoord_task_num, path: source}
+      - {metric: milvus_querycoord_collection_num, path: pipeline, note: "Yüklü collection sayısı"}
+      - {logql: '{log_source="milvus_access"} | json | status != "Successful"', path: log, note: "Erişim logunda başarısız istekler ve hata kodu"}
+    alerts: [MilvusRequestErrorRateHigh]
+    checks: [milvus_health, memory_near_limit]
+    panel: "Yüklü collection"
+    category: database
+    notes: "Hata oranı alarmı sonucu görür; yükleme başarısızlığına özel bir alarm ya da kontrol yok."
+
+  - id: yukleme-querynode-eksik
+    area: yukleme
+    title: Querynode eksik ya da salt okunur
+    symptom: Querynode sayısı beklenenden az; replikalar salt okunur düğümlerde kalır, aramalar yavaşlar ya da hata verir.
+    signals:
+      - {metric: milvus_querycoord_querynode_num, path: pipeline}
+      - {metric: milvus_querycoord_replica_ro_node, path: pipeline, note: "Salt okunur düğümdeki replikalar"}
+      - {metric: kube_pod_status_ready, path: platform}
+    alerts: [VectorDBPodCrashLooping, PodEvicted]
+    checks: [milvus_coordinators, pod_restarts, node_conditions]
+    scenario: node-loss
+    panel: "Koordinatörün gördüğü düğümler"
+    category: infrastructure_system
+
+  # ------------------------------------------------------------------ arka plan
+  - id: arkaplan-compaction
+    area: arkaplan
+    title: Compaction gecikmesi ve segment birikimi
+    symptom: Küçük ve silinmiş satırlı segmentler birikir; aramalar yavaşlar, bellek ve disk büyür, L0 birikir.
+    signals:
+      - {metric: milvus_datacoord_compaction_task_num, path: source}
+      - {metric: milvus_datacoord_segment_num, path: source, note: "segment_state başına (Growing, Flushed …)"}
+      - {metric: milvus_datanode_compaction_latency, path: source}
+      - {metric: milvus_datanode_compaction_latency_in_queue, path: source}
+    checks: [milvus_segment_backlog]
+    panel: "Bekleyen compaction"
+    category: database
+
+  - id: arkaplan-index
+    area: arkaplan
+    title: Index oluşturma gecikmesi ya da başarısızlığı
+    symptom: >-
+      Yeni veri index'lenmez; aramalar index'siz (brute-force) yolla yavaşlar. Index görevleri "unissued" ya da
+      "failed" kalır.
+    signals:
+      - {metric: milvus_datacoord_index_task_count, path: source, note: "index_task_status: unissued, in-progress, failed"}
+      - {metric: milvus_indexnode_build_index_latency, path: source}
+      - {metric: milvus_rootcoord_indexed_entity_num, path: source, note: "entity_num ile karşılaştırılır"}
+      - {metric: milvus_rootcoord_entity_num, path: source}
+    checks: [golden_signals_baseline, pod_restarts, memory_near_limit]
+    category: database
+    notes: >-
+      Index'e özel kontrol ya da alarm yok; gecikme dolaylı olarak arama gecikmesinde görülür. Gözlendi
+      (loadtest, 2026-10-08): compaction segmentleri ~1 GB'a birleştirince HNSW derlemesi datanode'u (limit 2 GiB)
+      döngüsel olarak OOMKilled etti (9+ yeniden başlama), index bekleyen satırlar azalmadı. İz: datanode
+      OOMKilled + pod_restarts; collection silinince durdu. Büyük HNSW collection'larında datanode belleği,
+      segment boyutundan (dataCoord.segment.maxSize) büyük olmalı.
+
+  # ------------------------------------------------------------------ depolama
+  - id: depolama-hata
+    area: depolama
+    title: Object storage hataları ve gecikmesi
+    symptom: >-
+      Segment yazma/okuma, index ve yükleme hata verir ya da yavaşlar. WAL (woodpecker) object storage'a yazamazsa
+      yazma yolu da durur.
+    signals:
+      - {metric: milvus_storage_op_count, path: pipeline, note: "status=\"fail\""}
+      - {metric: internal_storage_op_count, path: pipeline, note: "Çekirdek (C++) katmanın depolama işlemleri; kontrol bunu kullanır"}
+      - {metric: milvus_storage_request_latency, path: source}
+      - {metric: woodpecker_server_object_storage_operations, path: pipeline, note: "WAL'ın object storage işlemleri"}
+      - {metric: woodpecker_server_object_storage_operation_latency, path: pipeline}
+    alerts: [MilvusObjectStorageErrors, MilvusRequestErrorRateHigh]
+    checks: [milvus_object_storage]
+    scenario: 10-object-storage
+    panel: "Object storage işlemleri ve hatalar"
+    category: vendor_external
+    notes: "GKE'de GCS, hedef ortamda Ceph. MilvusObjectStorageErrors kontrolle aynı eşiği kullanır (≥5 hata ve %1)."
+
+  # ------------------------------------------------------------------ disk
+  - id: disk-querynode-lokal
+    area: disk
+    title: Querynode lokal diskinin dolması
+    symptom: Disk tabanlı index ve önbellek için lokal disk dolar; yükleme başarısız olur, pod evict edilebilir.
+    signals:
+      - {metric: milvus_querynode_disk_used_size, path: pipeline}
+      - {metric: milvus_querynode_disk_cache_evict_bytes, path: source}
+      - {metric: kubelet_volume_stats_used_bytes, path: platform}
+      - {metric: ephemeral_storage_pod_usage, path: platform}
+    alerts: [PVCUsageHigh, PVCUsageCritical, EphemeralStorageNearLimit]
+    checks: [pvc_usage, ephemeral_storage_usage]
+    panel: "PVC doluluğu"
+    category: capacity_performance
+
+  - id: disk-ephemeral
+    area: disk
+    title: 1 GiB ephemeral sınırı ve access log emptyDir'i
+    symptom: >-
+      Pod'un geçici diski hedef ortamdaki 1 GiB sınırını ya da access log emptyDir'inin 384 MiB sınırını aşar; pod evict
+      edilir, yeniden planlanır.
+    signals:
+      - {metric: ephemeral_storage_pod_usage, path: platform}
+      - {metric: ephemeral_storage_container_volume_limit_percentage, path: platform}
+      - {metric: kube_pod_status_reason, path: platform, note: "reason=\"Evicted\""}
+    threshold: "%80 (1 GiB ve emptyDir sizeLimit için)"
+    threshold_source: "deploy/helm/vectordb-alerts/values.yaml"
+    alerts: [EphemeralStorageNearLimit, EmptyDirNearSizeLimit, PodEvicted]
+    checks: [ephemeral_storage_usage]
+    panel: "Ephemeral disk / 1 GiB"
+    category: capacity_performance
+
+  # ------------------------------------------------------------------ proxy
+  - id: proxy-rate-limit
+    area: proxy
+    title: Hız sınırı (rate limited)
+    symptom: İstekler "rate limit exceeded" hatasıyla reddedilir.
+    signals:
+      - {metric: milvus_proxy_rate_limit_req_count, path: pipeline, note: "status=\"fail\" = sınıra takılan"}
+      - {logql: '{log_source="milvus_access"} | json | error_code != "0"', path: log}
+    threshold: "DML/DQL/DDL hız sınırları varsayılan olarak kapalı; açık olan yalnızca collection başına flush (0.1/sn)."
+    threshold_source: "quotaAndLimits.{dml,dql,ddl,flushRate}"
+    alerts: [MilvusRequestErrorRateHigh]
+    category: capacity_performance
+    notes: "Hız sınırına özel kontrol yok."
+
+  - id: proxy-gecikme
+    area: proxy
+    title: Arama gecikmesi ve zaman aşımı
+    symptom: Arama/sorgu p99 gecikmesi yükselir, istemciler zaman aşımına düşer.
+    signals:
+      - {metric: milvus_proxy_req_latency, path: pipeline, note: "function_name: Search, HybridSearch, Query"}
+      - {metric: milvus_proxy_req_in_queue_latency, path: pipeline, note: "Proxy kuyruğunda bekleme"}
+      - {metric: milvus_proxy_queue_task_num, path: pipeline}
+      - {metric: milvus_querynode_read_task_ready_len, path: pipeline, note: "Querynode'da bekleyen okuma görevleri"}
+      - {metric: milvus_querynode_sq_segment_latency, path: source}
+    threshold: "p99 > 1000 ms, 10 dk"
+    threshold_source: "deploy/helm/vectordb-alerts/values.yaml"
+    alerts: [MilvusSearchLatencyP99High]
+    checks: [golden_signals_baseline, cpu_throttling, milvus_coordinators]
+    panel: "Arama p99 gecikmesi"
+    category: capacity_performance
+
+  - id: proxy-hata
+    area: proxy
+    title: İstek hataları (not loaded, timeout, diğer)
+    symptom: Proxy isteklerinin bir kısmı hata döner; erişim logunda hata kodu ve mesajı görülür.
+    signals:
+      - {metric: milvus_proxy_req_count, path: pipeline, note: "status=\"fail\" / status=\"total\", function_name başına"}
+      - {logql: '{log_source="milvus_access"} | json | status != "Successful"', path: log, note: "error_code ile nedeni ayırt edilir"}
+    threshold: "Hata oranı > %5, 10 dk"
+    threshold_source: "deploy/helm/vectordb-alerts/values.yaml"
+    alerts: [MilvusRequestErrorRateHigh]
+    checks: [milvus_health, new_error_signatures]
+    category: database
+    notes: "Hata kodlarına göre ayrım (not loaded / timeout / rate limit) bugün yalnızca erişim logundan yapılabilir."
+
+  - id: proxy-baglanti
+    area: proxy
+    title: Bağlantı sayısının tükenmesi
+    symptom: Yeni istemci bağlantıları reddedilir; mevcut istemciler çalışmaya devam eder.
+    signals:
+      - {metric: milvus_proxy_connection_num, path: none, note: "2.6.6'da yok; kontrol bunu sorguluyor"}
+      - {metric: milvus_proxy_user_rpc_count, path: pipeline, note: "Kullanıcı başına istek; bağlantı sayısının yerini tutmaz"}
+    checks: [milvus_connections]
+    scenario: milvus-connection-limit
+    panel: "Proxy bağlantı sayısı"
+    category: database
+    notes: "Bkz. bilinen sorunlar: kontrol çalışmıyor."
+
+  # ------------------------------------------------------------------ WAL
+  - id: wal-yazma
+    area: wal
+    title: WAL'a (woodpecker) yazılamıyor ya da yavaş
+    symptom: >-
+      2.6'da yazma yolu streamingnode ve WAL üzerinden geçer. WAL yazması yavaşlarsa ya da tekrar denerse insert
+      gecikir, zaman aşımına düşer.
+    signals:
+      - {metric: milvus_wal_append_message_duration_seconds, path: pipeline}
+      - {metric: milvus_wal_impls_append_message_retry, path: pipeline, note: "Tekrar denemeler"}
+      - {metric: milvus_wal_recovery_inconsistent_event, path: pipeline, note: "Kurtarmada tutarsızlık"}
+      - {metric: woodpecker_client_append_latency, path: pipeline}
+    category: database
+    notes: "2.6 mimarisine özgü, yeni bir alan; ne alarm ne kontrol var. Eşikler için veri gerekiyor."
+
+  # ------------------------------------------------------------------ koordinatör
+  - id: koordinator-dusuk
+    area: koordinator
+    title: Mixcoord ya da düğümler çalışmıyor
+    symptom: Koordinatör düşerse yeni yükleme, DDL ve zaman damgası üretimi durur; tenant'ın telemetrisi de kesilir.
+    signals:
+      - {metric: milvus_num_node, path: pipeline, note: "Rol başına düğüm sayısı"}
+      - {metric: milvus_querycoord_last_heartbeat_timestamp, path: pipeline}
+      - {metric: milvus_rootcoord_timestamp, path: pipeline, note: "İlerlemiyorsa koordinatör takılmış"}
+      - {metric: kube_pod_container_status_waiting_reason, path: platform, note: "reason=\"CrashLoopBackOff\""}
+    alerts: [VectorDBPodCrashLooping, VectorDBPodRestarting, MilvusTenantTelemetryStale]
+    checks: [milvus_coordinators, milvus_health, pod_restarts]
+    panel: "Querynode heartbeat yaşı"
+    category: database
+
+  # ------------------------------------------------------------------ yedek
+  - id: yedek-basarisiz
+    area: yedek
+    title: Tenant yedeği başarısız
+    symptom: Gece yedeği (tenant başına CronJob, 02:00) başarısız biter ya da MilvusBackup "Failed" olur; felakette dönülecek yedek yoktur.
+    signals:
+      - {metric: kube_job_status_failed, path: platform, note: "job_name=~\"cus-.*-milvus-backup-.*\""}
+      - {metric: kube_cronjob_status_last_successful_time, path: platform, note: "Son başarılı yedeğin yaşı"}
+      - {object: MilvusBackup.status.phase, path: k8s, note: "sre-agent'ın okuma yetkisinde değil"}
+    category: infrastructure_system
+    notes: "Hiç alarm ya da kontrol yok. Genel KubeJobFailed alarmı sre-agent'a gitmiyor."
+
+  - id: yedek-geri-yukleme
+    area: yedek
+    title: Geri yükleme (MilvusRestore) başarısız
+    symptom: Geri yükleme "Failed" olur ya da bitmez; hedef tenant eksik veriyle kalır.
+    signals:
+      - {object: MilvusRestore.status.phase, path: k8s, note: "sre-agent'ın okuma yetkisinde değil"}
+      - {metric: kube_job_status_failed, path: platform}
+    category: infrastructure_system
+    notes: "Elle başlatılan bir işlem; alarmdan çok işlem sonucunun raporlanması gerekir."
+
+  - id: yedek-platform-isi
+    area: yedek
+    title: VectorDB platform işi başarısız
+    symptom: >-
+      VectorDB'ın tenant işlemleri için açtığı Job'lar (ör. parola sıfırlama) başarısız kalır. Katalog yazılırken
+      `vectordb` namespace'inde böyle bir Job vardı.
+    signals:
+      - {metric: kube_job_status_failed, path: platform}
+    category: application_service_bug
+    notes: "Bizim kurallarımız Job başarısızlığını izlemiyor."
+
+  # ------------------------------------------------------------------ hat
+  - id: hat-tenant-verisi
+    area: hat
+    title: Tenant'ın telemetrisi gelmiyor
+    symptom: Tenant'ın Milvus metrikleri Prometheus'a ulaşmıyor; alarmlar sessizleşir, raporlar kör noktalı olur.
+    signals:
+      - {metric: milvus_rootcoord_timestamp, path: pipeline, note: "Son örneğin yaşı = tazelik"}
+      - {metric: kafka_consumergroup_lag, path: platform}
+    threshold: "Son veri > 10 dk"
+    threshold_source: "deploy/helm/vectordb-alerts/values.yaml, config/gke.yaml (freshness)"
+    alerts: [MilvusTenantTelemetryStale, KafkaConsumerLagHigh, KafkaTopicNoIncomingData, TelemetryConsumerSendFailures]
+    checks: [kafka_consumer_lag]
+    scenario: 11-kafka-lag
+    panel: "Veri yaşı"
+    category: infrastructure_system
+    notes: "Kitap Bölüm 3.9. `make pipeline-demo` bunun provası."
+
+  # ------------------------------------------------------------------ 2026-10-15 eklemeleri
+  - id: woodpecker-truncation-etcd
+    area: wal
+    title: Woodpecker durdu, etcd şişti, zincirleme çökme
+    symptom: >-
+      Object storage bir segment yazımını onaylayıp kalıcı yapmazsa (kayıp yazma) Woodpecker'ın kırpma işi durur;
+      tüketim noktaları donar, etcd'de anahtar birikir ("apply request took too long"), bileşenler lease kaybedip
+      crash-loop'a girer. Önce bir kanalın checkpoint'i donar, sonra bütün tenant çöker.
+    signals:
+      - {metric: milvus_wal_recovery_inconsistent_event, path: pipeline}
+      - {metric: woodpecker_client_append_latency, path: pipeline}
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "bütün bileşenlerde artış"}
+      - {metric: etcd_mvcc_db_total_size_in_bytes, path: none, note: "etcd toplanmıyor"}
+    category: vendor_external
+    notes: >-
+      Kök neden object storage'ın dayanıklılığı (Ceph min_size); hedef ortamın Ceph ortamı için doğrudan geçerli.
+      Belirti veritabanı gibi görünür, başlatan olay depolamadır.
+    refs: ["[#54049](https://github.com/milvus-io/milvus/issues/54049)", "[#48730](https://github.com/milvus-io/milvus/issues/48730)"]
+
+  - id: etcd-yavas-disk
+    area: etcd
+    title: etcd diski yavaş (fsync), lease süresi doluyor
+    symptom: >-
+      etcd'nin diski yavaşlarsa yazmalar gecikir, Milvus bileşenlerinin lease'leri dolar ve süreçler kendini
+      kapatır (çıkış kodu 80, "the session is expired"). Restartlar etcd çalışırken de görülür.
+    signals:
+      - {metric: etcd_disk_wal_fsync_duration_seconds, path: none, note: "etcd toplanmıyor"}
+      - {metric: etcd_server_has_leader, path: none, note: "etcd toplanmıyor"}
+      - {metric: milvus_meta_request_latency, path: pipeline}
+      - {metric: kube_pod_container_status_restarts_total, path: platform}
+    alerts: [VectorDBPodRestarting]
+    checks: [milvus_etcd, pod_restarts]
+    category: database
+    notes: "Lease kaybı log'u Milvus pod'larında; etcd metrikleri olmadan kök neden (disk) görülemez."
+    refs: ["[#49530](https://github.com/milvus-io/milvus/issues/49530)", "[#45303](https://github.com/milvus-io/milvus/issues/45303)"]
+
+  - id: depolama-kimlik-ca
+    area: depolama
+    title: Object storage kimlik, CA ya da adresleme hatası
+    symptom: >-
+      Anahtar yanlış ya da boşsa AccessDenied; kurum CA'sı yoksa x509; Ceph RGW'de virtual-host adresleme
+      kullanılırsa SignatureDoesNotMatch (403); endpoint portsuz ve useSSL açıksa :80'e TLS. Bucket açılamaz,
+      streamingnode ve querynode başlamaz ya da yazamaz.
+    signals:
+      - {metric: milvus_storage_op_count, path: source, note: "status=\"fail\""}
+      - {object: "MilvusTenant.status.message", path: k8s, note: "auto-create bucket failed: AccessDenied / x509 / timeout"}
+    alerts: [MilvusObjectStorageErrors]
+    checks: [milvus_object_storage]
+    category: human_error
+    scope: tum-tenantlar
+    notes: "Anahtar ve CA bütün tenant'larda ortak: biri bozulunca hepsi etkilenir. Hedef ortamda Ceph path-style ve kurum CA'sı zorunlu."
+    refs: ["tenant-operator v0.37.1, v0.44.20", "[Ceph #37616](https://tracker.ceph.com/issues/37616)"]
+
+  - id: bucket-key-bos
+    area: platform
+    title: milvus-bucket-key boş ya da yanlış adla verilmiş
+    symptom: >-
+      Ortak depolama anahtarı boşsa aynalama reddedilir ve tenant Creating'de kalır; secretRef farklı adla
+      verilirse kopya hiç oluşmaz ve hiçbir yer hata vermez. 0.44.12 öncesinde boş değer kopyanın üstüne
+      yazılıyordu: tenant Running görünürken Milvus depolamaya yazamıyordu.
+    signals:
+      - {object: "MilvusTenant.status.phase", path: k8s, note: "Creating'de takılı"}
+      - {object: "MilvusTenant.status.message", path: k8s}
+    category: human_error
+    scope: tum-tenantlar
+    refs: ["tenant-operator v0.44.12", "teslim/KURULUM.md §7"]
+
+  - id: operator-izleme-listesi
+    area: platform
+    title: Namespace milvus-operator'ın izleme listesinde değil
+    symptom: >-
+      Milvus CR yazılır ama pod gelmez; status boş, log sessiz. Tenant Running görünebilir. Sebep: namespace
+      --watch-namespace listesinde değil ya da milvus-operator-manager RoleBinding'i yok.
+    signals:
+      - {object: "Milvus.status.status", path: k8s, note: "boş"}
+      - {object: "MilvusTenant.status.phase", path: k8s}
+      - {metric: kube_pod_info, path: platform, note: "tenant namespace'inde Milvus pod'u yok"}
+    category: infrastructure_system
+    notes: "Tenant fazı Milvus sağlığını göstermez; gerçek sağlık Milvus CR'ında ve pod'larda."
+    refs: ["vectordb-platform-helm/docs/04-TENANT-YASAM-DONGUSU.md (K1)"]
+
+  - id: operator-yeniden-baslama
+    area: platform
+    title: milvus-operator yeniden başlıyor (tenant açma, helm upgrade, ArgoCD döngüsü)
+    symptom: >-
+      Her yeni tenant ve her helm upgrade'de milvus-operator 1–2 kez yeniden başlar; ~75 sn boyunca hiçbir
+      tenant reconcile edilmez. ArgoCD selfHeal ile ignoreDifferences eksikse sonsuz döngüye girer.
+    signals:
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "milvus-operator"}
+      - {metric: kube_deployment_status_observed_generation, path: platform, note: "generation artışı"}
+    category: infrastructure_system
+    scope: tum-tenantlar
+    refs: ["vectordb-platform-helm/docs/01-ISLETME.md §4"]
+
+  - id: tenant-olusturma-takili
+    area: platform
+    title: Tenant Creating'de takılı
+    symptom: >-
+      Sıra bozulursa (metrics ConfigMap yok) proxy init'te bekler, password-reset Job bitmez ("Waiting for
+      password reset"); varsayılan StorageClass yoksa etcd PVC Pending kalır; bucket açılamazsa
+      "auto-create bucket failed".
+    signals:
+      - {object: "MilvusTenant.status.message", path: k8s}
+      - {metric: kube_persistentvolumeclaim_status_phase, path: platform, note: "phase=\"Pending\""}
+      - {metric: kube_job_status_failed, path: platform, note: "password-reset Job"}
+    checks: [pending_pods]
+    category: infrastructure_system
+    refs: ["04-TENANT-YASAM-DONGUSU.md (K2)", "tenant-operator v0.44.1"]
+
+  - id: tenant-silme-takili
+    area: platform
+    title: Tenant silinemiyor, kaynaklar yetim kalıyor
+    symptom: >-
+      Silme sırası bozulursa Milvus CR Deleting'de, tenant Terminating'de takılır; etcd StatefulSet ve PVC'ler
+      ya da bucket'taki veri yetim kalır ("bucket is not empty").
+    signals:
+      - {object: "MilvusTenant.metadata.deletionTimestamp", path: k8s}
+      - {object: "Milvus.status.status", path: k8s, note: "Deleting"}
+    category: infrastructure_system
+    refs: ["04-TENANT-YASAM-DONGUSU.md (S1, S3)", "tenant-operator v0.44.7"]
+
+  - id: milvusconfig-reddi
+    area: platform
+    title: Tenant'ın milvusConfig'i reddedildi
+    symptom: >-
+      Kara listedeki ya da bozuk bir ayar reddedilir; tenant Running kalır, ayar uygulanmaz, sebep yalnız
+      status.message'da görünür.
+    signals:
+      - {object: "MilvusTenant.status.message", path: k8s}
+    category: human_error
+    refs: ["tenant-operator v0.44.16–18"]
+
+  - id: ag-politikasi
+    area: platform
+    title: NetworkPolicy Milvus ya da etcd erişimini kesiyor
+    symptom: >-
+      Tenant politikası proxy ve etcd pod'larını izole eder; yalnız backend, password-reset, milvus-operator ve
+      namespace içi trafik açıktır. 2379 izni eksikse operatör etcd'ye ulaşamaz ve Milvus pod'ları kurulmaz;
+      başka namespace'teki istemciler 19530'a ulaşamaz. Etiketler tutmazsa kural beklenen pod'u seçmez.
+    signals:
+      - {object: "NetworkPolicy.spec", path: k8s}
+      - {metric: milvus_proxy_req_count, path: pipeline, note: "istek gelmiyor"}
+    checks: [networkpolicy_changes]
+    category: network
+    refs: ["teslim/cluster-objeleri/tenant/networkpolicy-tenant.yaml", "teslim/KURULUM.md §1.6"]
+
+  - id: geri-yukleme-index-yok
+    area: yedek
+    title: Geri yüklemeden sonra index yok
+    symptom: Restore index'leri geri getirmez; collection yüklenirken "index not found" hatası alınır.
+    signals:
+      - {object: "MilvusRestore.status", path: k8s}
+      - {metric: milvus_querycoord_load_req_count, path: source, note: "status=\"fail\""}
+    category: application_service_bug
+    refs: ["06-ACIK-ISLER.md D9"]
+
+  - id: hat-collector-drop
+    area: hat
+    title: Telemetri toplayıcısı kayıt düşürüyor ya da gönderemiyor
+    symptom: >-
+      Toplayıcı tek nokta; kuyruk dolunca kayıt düşer (retry yok). Gateway'de TLS açılır da ajanlar düz göndermeye
+      devam ederse veri sessizce kesilir. Milvus etkilenmez ama alarmlar kör kalır.
+    signals:
+      - {metric: otelcol_exporter_send_failed_log_records, path: platform}
+      - {metric: otelcol_exporter_queue_size, path: platform}
+    alerts: [KafkaTopicNoIncomingData, MilvusTenantTelemetryStale]
+    category: infrastructure_system
+    scope: tum-tenantlar
+    refs: ["06-ACIK-ISLER.md B6", "ADR-0023 (VectorDB)"]
+
+  - id: imaj-cekilemiyor
+    area: platform
+    title: İmaj çekilemiyor (registry)
+    symptom: >-
+      Registry boş verilirse chart docker.io önekini ekler; air-gap ortamda ya da yetki yoksa ImagePullBackOff.
+    signals:
+      - {metric: kube_pod_container_status_waiting_reason, path: platform, note: "reason=\"ImagePullBackOff\""}
+    checks: [pod_restarts]
+    category: human_error
+    refs: ["milvus-tenant-operator/docs/TROUBLESHOOTING-IMAGE-REGISTRY.md"]
+
+  # ------------------------------------------------------------------ operatörler
+  - id: op-tenant-operator-calismiyor
+    area: operator
+    title: milvus-tenant-operator çalışmıyor (crash, OOM, leader yok)
+    symptom: >-
+      Çalışan Milvus'lar etkilenmez ama hiçbir tenant işi ilerlemez: yeni tenant açılmaz, silinmez, parola
+      rotasyonu ve yedek CronJob'ları güncellenmez, izleme listesi güncellenmez, sırlar aynalanmaz. Sorun ancak
+      bir değişiklik istendiğinde fark edilir.
+    signals:
+      - {metric: kube_deployment_status_replicas_available, path: platform, note: "milvus-tenant-operator"}
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "milvus-tenant-operator"}
+      - {metric: controller_runtime_reconcile_errors_total, path: none, note: "operatör metrikleri toplanmıyor"}
+    checks: [pod_restarts]
+    category: infrastructure_system
+    scope: tum-tenantlar
+    notes: "Operatör logları ve metrikleri bugün hiçbir yoldan toplanmıyor: ajan operatörü yalnız pod durumundan görebilir."
+
+  - id: op-milvus-operator-calismiyor
+    area: operator
+    title: milvus-operator çalışmıyor
+    symptom: >-
+      Milvus bileşenlerinin kendini onarması (silinen Deployment'ın geri gelmesi, yükseltme, ölçek değişikliği)
+      durur; tenant-operator'ın yazdığı Milvus CR'ları uygulanmaz. Çalışan pod'lar ayakta kalır.
+    signals:
+      - {metric: kube_deployment_status_replicas_available, path: platform, note: "milvus-operator"}
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "milvus-operator"}
+      - {object: "Milvus.status.conditions", path: k8s}
+    checks: [pod_restarts]
+    category: infrastructure_system
+    scope: tum-tenantlar
+
+  - id: op-reconcile-hatasi
+    area: operator
+    title: Reconcile hata döngüsünde (yetki, eksik CRD, çakışma)
+    symptom: >-
+      Operatör aynı tenant'ı tekrar tekrar dener ve başaramaz: eksik yetki (ör. deletecollection), CRD yok
+      ("no matches for kind"), çakışan güncelleme. Tenant status.message'da hata, operatör logunda tekrar eden satır.
+    signals:
+      - {object: "MilvusTenant.status.message", path: k8s}
+      - {object: "MilvusTenant.status.phase", path: k8s}
+      - {metric: controller_runtime_reconcile_errors_total, path: none, note: "toplanmıyor"}
+    category: infrastructure_system
+    refs: ["tenant-operator v0.30.2", "teslim/KURULUM.md §8"]
+
+  - id: op-tek-tenant-hepsini-kilitler
+    area: operator
+    title: Tek tenant'ın bozuk durumu bütün reconcile'ı kilitliyor
+    symptom: >-
+      Bir tenant'ta beklenmeyen durum (cus-sevim olayında etcd persistence nil) operatörün koruma kontrolüne
+      takılır ve operatör bütün tenant'ların reconcile'ını durdurur.
+    signals:
+      - {object: "MilvusTenant.status.message", path: k8s}
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "operatör"}
+    category: application_service_bug
+    scope: tum-tenantlar
+    notes: "tenant-operator v0.30.3 ve milvus-operator fork rc2 ile kapatıldı; sınıfı (tek tenant → hepsi) hâlâ risk."
+    refs: ["tenant-operator v0.30.3", "milvus-zilliz-operator CHANGELOG (rc2)"]
+
+  - id: op-crd-surum-uyumsuz
+    area: operator
+    title: CRD ile operatör sürümü uyumsuz
+    symptom: >-
+      Operatör yeni bir alan bekler ama CRD eskiyse alan sessizce düşer, ayar uygulanmaz ve hata çıkmaz. Hedef ortamda
+      CRD elle uygulanmazsa operatör "no matches for kind" ile yeniden başlar.
+    signals:
+      - {object: "CustomResourceDefinition.spec.versions", path: k8s}
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "operatör"}
+    category: human_error
+    scope: tum-tenantlar
+    refs: ["teslim/KURULUM.md §7–8"]
+
+  - id: op-bagimlilik-hazir-degil
+    area: operator
+    title: milvus-operator bağımlılıklar hazır olmadığı için reconcile etmiyor
+    symptom: >-
+      milvus-operator önce etcd'yi (2379) ve depolamayı sınar; hazır değillerse Milvus bileşenlerini hiç
+      reconcile etmez. Milvus CR Unhealthy ya da Pending'de kalır, pod'lar oluşmaz ya da güncellenmez.
+    signals:
+      - {object: "Milvus.status.conditions", path: k8s, note: "EtcdReady / StorageReady False"}
+    checks: [milvus_health, milvus_etcd]
+    category: database
+    refs: ["milvus-zilliz-operator/docs/arch/reconcile.md"]
+
+  - id: op-parola-rotasyonu
+    area: operator
+    title: Root parolası rotasyonu uygulanmadı ya da password-reset Job takıldı
+    symptom: >-
+      Yeni parola tenant reconcile edilene kadar uygulanmaz; password-reset Job proxy'ye ulaşamazsa takılır.
+      Eski Job kalırsa yeni tenant varsayılan parolayla açık kalabiliyordu. milvusadmin yoksa backend
+      "auth check failure" alır.
+    signals:
+      - {metric: kube_job_status_failed, path: platform, note: "password-reset"}
+      - {object: "MilvusTenant.status.message", path: k8s}
+    checks: [auth_failures]
+    category: security
+    scope: tum-tenantlar
+    refs: ["06-ACIK-ISLER.md B3, D10", "tenant-operator 7ea3d3e"]
+
+  # ------------------------------------------------------------------ proxy pod'u
+  - id: sidecar-emptydir-dolu
+    area: proxypod
+    title: Access-log sidecar'ının emptyDir'i doldu
+    symptom: >-
+      Proxy pod'undaki access-log sidecar'ı logları 384Mi'lik emptyDir'e yazar; dolarsa pod ephemeral sınırını
+      aşar ve evict edilir. Proxy giderse tenant'ın bütün istemci istekleri düşer: yardımcı bir bileşen veri
+      yolunu keser.
+    signals:
+      - {metric: kubelet_volume_stats_used_bytes, path: platform, note: "emptyDir"}
+      - {metric: kube_pod_status_reason, path: platform, note: "Evicted"}
+    alerts: [EmptyDirNearSizeLimit, EphemeralStorageNearLimit, PodEvicted]
+    checks: [ephemeral_storage_usage]
+    category: capacity_performance
+    notes: "Hedef ortamda pod başına 1 GiB ephemeral; querynode önbelleği ve sidecar aynı bütçeden yer (ölçülmedi)."
+
+  - id: sidecar-proxy-hazir-degil
+    area: proxypod
+    title: Sidecar çöktü, proxy pod'u hazır değil
+    symptom: >-
+      Sidecar container'ı çöker ya da yeniden başlarsa pod Ready olmaz; Service proxy'yi uç noktalardan çıkarır.
+      Proxy sağlıklı olsa da istemciler bağlanamaz.
+    signals:
+      - {metric: kube_pod_container_status_restarts_total, path: platform, note: "container=sidecar"}
+      - {metric: kube_pod_status_ready, path: platform, note: "proxy pod'u"}
+      - {metric: milvus_proxy_req_count, path: pipeline, note: "istek düşüşü"}
+    alerts: [VectorDBPodRestarting]
+    checks: [pod_restarts]
+    category: application_service_bug
+
+  - id: metrics-agent-sorunlari
+    area: proxypod
+    title: metrics-agent veri toplayamıyor ya da tenant kotasını tüketiyor
+    symptom: >-
+      Ajanın kendi Role'ü eksikse ya da hedefi kaçırırsa (metricsEnabled sonradan açılınca bir kez) metrik
+      gelmez; alarmlar kör kalır. Ajan ve sidecar tenant ResourceQuota'sından yer: kota dolarsa Milvus pod'u
+      oluşturulamaz ("exceeded quota"). Gateway'e düz OTLP gönderir; gateway TLS'e geçerse veri sessizce kesilir.
+    signals:
+      - {metric: kube_resourcequota, path: platform, note: "used / hard"}
+      - {metric: up, path: platform}
+    alerts: [MilvusTenantTelemetryStale]
+    category: infrastructure_system
+    notes: "Ajan bütün Milvus pod'larını okur ve gateway'e bağlıdır (topology'de düzeltildi)."
+    refs: ["06-ACIK-ISLER.md B4, B6"]
+

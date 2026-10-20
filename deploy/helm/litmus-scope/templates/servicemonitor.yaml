@@ -1,0 +1,18 @@
+{{- with .Values.exporterServiceMonitor }}
+{{- if .enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: litmus-chaos-exporter
+  namespace: {{ $.Values.litmusNamespace }}
+  labels:
+    app.kubernetes.io/part-of: sre-agent-chaos
+spec:
+  selector:
+    matchLabels: {{- toYaml .selector | nindent 6 }}
+  endpoints:
+    - port: {{ .port }}
+      path: /metrics
+      interval: {{ .interval }}
+{{- end }}
+{{- end }}

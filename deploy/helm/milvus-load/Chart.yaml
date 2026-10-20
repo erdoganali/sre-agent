@@ -1,0 +1,5 @@
+apiVersion: v2
+name: milvus-load
+description: Test tenant'ına (loadtest) gerçek veri ve trafik üreten yük aracı (chaos senaryoları; yalnızca GKE)
+type: application
+version: 0.1.0

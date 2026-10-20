@@ -1,0 +1,34 @@
+# VectorDB / Milvus paketinin PromQL sorguları: kontroller ve dashboard aynı sorguyu buradan okur (T1.13).
+# Python format biçimi: {ns} alarmın namespace'i (dashboard'da $tenant), {range} pencere (dashboard'da
+# $__rate_interval), {offset} baseline offset'i; PromQL süslü parantezleri çift yazılır ({{ }}).
+# Milvus metrikleri telemetri hattından gelir: job="milvus-metrics", namespace etiketi k8s_namespace_name.
+# Değiştirince: make dashboards (dashboard yeniden üretilir; test eşitliği denetler).
+
+checks:
+  milvus_querynode_memory_quota:
+    ratio: 'max by (pod) (container_memory_working_set_bytes{{namespace="{ns}",container="querynode"}}) / max by (pod) (kube_pod_container_resource_limits{{namespace="{ns}",container="querynode",resource="memory"}})'
+    hwl: 'max(milvus_rootcoord_qn_mem_high_water_level{{job="milvus-metrics",k8s_namespace_name="{ns}"}})'
+    deny: 'sum(increase(milvus_rootcoord_force_deny_writing_counter_total{{job="milvus-metrics",k8s_namespace_name="{ns}"}}[{range}]))'
+  milvus_coordinators:
+    querynodes: 'max(milvus_querycoord_querynode_num{{job="milvus-metrics",k8s_namespace_name="{ns}"}})'
+    datanodes: 'max(milvus_datacoord_datanode_num{{job="milvus-metrics",k8s_namespace_name="{ns}"}})'
+    stale: 'time() - max by (node_id) (milvus_querycoord_last_heartbeat_timestamp{{job="milvus-metrics",k8s_namespace_name="{ns}"}}) / 1e9'
+  milvus_etcd:
+    not_ready: 'kube_pod_status_ready{{namespace="{ns}",pod=~".*etcd.*",condition="true"}} == 0'
+    restarts: 'sum by (pod) (increase(kube_pod_container_status_restarts_total{{namespace="{ns}",pod=~".*etcd.*"}}[{range}])) > 0'
+    meta_fail: 'sum(increase(milvus_meta_op_count_total{{job="milvus-metrics",k8s_namespace_name="{ns}",status="fail"}}[{range}]))'
+    exists: 'count(kube_pod_info{{namespace="{ns}",pod=~".*etcd.*"}})'
+  milvus_object_storage:
+    fails: 'sum(increase(internal_storage_op_count_total{{job="milvus-metrics",k8s_namespace_name="{ns}",status="fail"}}[{range}]))'
+    total: 'sum(increase(internal_storage_op_count_total{{job="milvus-metrics",k8s_namespace_name="{ns}",status=~"success|fail"}}[{range}]))'
+    p99: 'histogram_quantile(0.99, sum by (le) (rate(internal_storage_request_latency_bucket{{job="milvus-metrics",k8s_namespace_name="{ns}"}}[{range}])))'
+  milvus_segment_backlog:
+    growing: 'sum(milvus_datacoord_segment_num{{job="milvus-metrics",k8s_namespace_name="{ns}",segment_state=~"Growing|Flushing"}})'
+    compaction: 'sum(milvus_datacoord_compaction_task_num{{job="milvus-metrics",k8s_namespace_name="{ns}",task_state=~"pending|executing"}})'
+  milvus_connections:
+    connections: 'sum by (pod) (milvus_proxy_connection_num{{job="milvus-metrics",k8s_namespace_name="{ns}"}})'
+
+# golden_signals_baseline'a eklenen Milvus sinyalleri
+signals:
+  milvus_requests_per_s: 'sum(rate(milvus_proxy_req_latency_count{{job="milvus-metrics",k8s_namespace_name="{ns}"}}[{range}]{offset}))'
+  milvus_search_p99_ms: 'histogram_quantile(0.99, sum by (le) (rate(milvus_proxy_req_latency_bucket{{job="milvus-metrics",k8s_namespace_name="{ns}",function_name=~"Search|HybridSearch|Query"}}[{range}]{offset})))'

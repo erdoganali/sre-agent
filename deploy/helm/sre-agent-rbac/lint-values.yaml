@@ -1,0 +1,3 @@
+# make template: namespace kipi de derlensin (varsayılan cluster kipi values.yaml'da)
+scope: namespaces
+namespaces: [ornek-a, ornek-b]

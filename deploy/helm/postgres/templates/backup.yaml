@@ -1,0 +1,67 @@
+{{- if .Values.backup.enabled }}
+{{- if not .Values.backup.bucket }}{{ fail "backup.bucket zorunlu" }}{{ end }}
+# Günlük pg_dump → S3 uyumlu nesne deposu. Yedekleme hesabı silemez.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-backup
+  labels: {{- include "pg.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-backup
+            app.kubernetes.io/part-of: sre-agent
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            seccompProfile: {type: RuntimeDefault}
+          initContainers:
+            - name: dump
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              command: [sh, -c]
+              args:
+                - pg_dump -Fc -h {{ .Release.Name }} -U {{ .Values.appUser }} {{ .Values.database }}
+                  -f /backup/{{ .Values.database }}-$(date -u +%Y%m%dT%H%M%SZ).dump && ls -l /backup
+              env:
+                - name: PGPASSWORD
+                  valueFrom: {secretKeyRef: {name: {{ .Values.authSecret }}, key: app-password}}
+              securityContext: &sc
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: {drop: [ALL]}
+              volumeMounts: [{name: backup, mountPath: /backup}]
+          containers:
+            - name: upload
+              image: {{ .Values.backup.rcloneImage }}
+              args: [copy, /backup, ":s3:{{ .Values.backup.bucket }}/{{ .Values.backup.prefix }}", -v]
+              env:
+                - {name: RCLONE_S3_PROVIDER, value: {{ .Values.backup.provider | quote }}}
+                - {name: RCLONE_S3_ENDPOINT, value: {{ .Values.backup.endpoint | quote }}}
+                - {name: RCLONE_S3_NO_CHECK_BUCKET, value: "true"}
+                - {name: RCLONE_CONFIG, value: /tmp/rclone.conf}
+                - name: RCLONE_S3_ACCESS_KEY_ID
+                  valueFrom: {secretKeyRef: {name: {{ .Values.backup.secret }}, key: access_key_id}}
+                - name: RCLONE_S3_SECRET_ACCESS_KEY
+                  valueFrom: {secretKeyRef: {name: {{ .Values.backup.secret }}, key: secret_access_key}}
+              securityContext: *sc
+              volumeMounts:
+                - {name: backup, mountPath: /backup, readOnly: true}
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            - name: backup
+              emptyDir: {sizeLimit: 2Gi}
+            - name: tmp
+              emptyDir: {sizeLimit: 64Mi}
+{{- end }}
