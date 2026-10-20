@@ -151,6 +151,10 @@ One investigation is one OpenTelemetry trace in Tempo: a root span, a span per g
 
 ![Investigation trace](docs/screenshots/trace.png)
 
+Model cost and budget (Grafana): tokens per run, budget rejections, early synthesis and exhausted runs, tokens per minute by model, role and type (input, output, cached input), and model call latency. The budget is enforced in code, not in the prompt: 600K soft / 1M hard per run, 120K per specialist, ~8K per tool result. A real investigation with three specialists uses about 50–60K tokens.
+
+![Model cost and budget](docs/screenshots/cost.png)
+
 ## Limitations
 
 - Accuracy is not yet measured on a golden set; the evaluation harness exists (`eval/`, `scenarios/`), but the full comparison is post-MVP.
