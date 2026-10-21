@@ -2,11 +2,54 @@
 
 A read-only, multi-agent SRE assistant for a multi-tenant Milvus (vector database) platform on Kubernetes. When an alert fires, it collects evidence, lets specialist agents investigate with MCP tools, and writes a root-cause report that a human can verify.
 
+The core knows no product. The Milvus platform is the first **pack**; you can plug in your own product the same way (see [Use it for your own product](#use-it-for-your-own-product)).
+
 ## Problem
 
 One infrastructure event (a lost node, an etcd quorum loss) restarts many components at once and floods the on-call engineer with alerts. Finding the first cause means jumping between Prometheus, Loki, Tempo and the Kubernetes API. Most of these failures have been seen before, but that knowledge lives in people's heads.
 
 The agent answers the question an on-call engineer asks first: *what started this, and how sure are we?* It never changes the system. It only reads and reports.
+
+## Use it for your own product
+
+You do not change the core. You give it five things:
+
+| What | Where | What it is for |
+| --- | --- | --- |
+| **Pack** | `packs/<yours>/` (copy `packs/example/`) | `pack.yaml`: which alerts run which checks; `<module>/__init__.py`: your checks (PromQL, no model); `catalog.yaml`: known failures, indexed into the knowledge base; `topology.yaml`: components and dependencies; `specialists/product.md`: hints for the product specialist |
+| **Taxonomy** | `src/sre_agent/taxonomy/taxonomy.yaml` (shared, no change needed) | Root-cause categories every report ends with (application release, hardware problem, database, network…). Your pack maps onto them: each catalog entry names a category, `category_notes` says what it means for your product |
+| **Environment** | `config/<env>.yaml` | Enabled packs, Prometheus/Loki/Tempo/Grafana URLs, MCP server URLs, knowledge base URI (any Milvus 2.6), investigation mode |
+| **Models** | `config/models.yaml` | Any OpenAI-compatible endpoint (vLLM, a gateway, OpenAI). Two roles: `specialist` (tool loop) and `synthesize`. Keys come from environment variables, never the repo |
+| **Alerts** | Alertmanager | Route your alerts (`alert_matchers` in `pack.yaml`) to the agent's `POST /alerts` webhook |
+
+```yaml
+# config/<env>.yaml
+packs:
+  - path: packs/<yours>
+prometheus_url: http://prometheus.monitoring:9090
+knowledge:
+  uri: http://milvus.<ns>:19530          # or a local file: knowledge.db (Milvus Lite)
+investigation:
+  mode: "on"
+  mcp_servers:
+    metrics: http://sre-agent-mcp-metrics:8080/mcp
+    # logs, traces, k8s, product …
+```
+
+```yaml
+# config/models.yaml
+roles:
+  specialist: {model: main, max_tokens: 4096}
+  synthesize: {model: main, max_tokens: 8192}
+models:
+  main:
+    name: "${MAIN_MODEL:gpt-4.1-mini}"
+    url: "${MAIN_URL:https://api.openai.com/v1/chat/completions}"
+    max_context_tokens: 128000
+    headers: {Authorization: "Bearer ${MAIN_KEY:}"}
+```
+
+Then build the knowledge base (`python -m sre_agent.knowledge index`) and fire one of your alerts. Step-by-step guide and pack tests: [docs/packs.md](docs/packs.md).
 
 ## How it works
 
@@ -73,7 +116,9 @@ Grey steps are plain code. Light teal steps are agents (LLM + MCP tools). Dark t
 
 ## Quick start (no cluster needed)
 
-The demo replays a recorded real incident: an etcd quorum loss after a node was lost. Tool answers come from the recording, the knowledge base is a local Milvus Lite file, and the model runs live.
+The demo replays a recorded real incident: an etcd quorum loss after a node was lost. Tool answers come from the recording and the model runs live.
+
+In production the knowledge base is a collection in the Milvus platform the agent watches (one of its own tenants). The demo has no cluster, so it builds the same collection in [Milvus Lite](https://milvus.io/docs/milvus_lite.md), Milvus's embedded mode that keeps the data in one local file. The code is the same; only `knowledge.uri` changes (a URL or a file path).
 
 Requirements: Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 
@@ -119,13 +164,9 @@ kubectl exec deploy/sre-agent -- python -m sre_agent.knowledge index   # build t
 - Model keys come from a Kubernetes Secret, never from the repo.
 - Alertmanager sends alerts to `POST /alerts`. Reports are served at `/reports/<id>`.
 
-## Add your own product
-
-The core knows no product; everything product-specific is a **pack** under `packs/` (checks, alert routing, failure catalog for the knowledge base, specialist guides, topology), enabled in `config/<env>.yaml`. Copy `packs/example/` and follow [docs/packs.md](docs/packs.md).
-
 ## Technologies
 
-Python 3.12, uv, LangGraph, MCP (Python SDK), Pydantic structured output, FastAPI, PostgreSQL (with LangGraph checkpoints), Milvus 2.6 / Milvus Lite (BM25), OpenTelemetry GenAI traces, Prometheus, Alertmanager, Grafana, Loki, Tempo, Kafka, LitmusChaos (fault scenarios), Helm, Argo CD.
+Python 3.12, uv, LangGraph, MCP (Python SDK), Pydantic structured output, FastAPI, PostgreSQL (with LangGraph checkpoints), Milvus 2.6 (knowledge base, BM25; Milvus Lite in the demo), OpenTelemetry GenAI traces, Prometheus, Alertmanager, Grafana, Loki, Tempo, Kafka, LitmusChaos (fault scenarios), Helm, Argo CD.
 
 ## Repository layout
 
